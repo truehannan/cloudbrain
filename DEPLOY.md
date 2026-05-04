@@ -253,54 +253,67 @@ const transcript = await env.AI.run("@cf/openai/whisper", {
 
 ---
 
-# Phase 4: Prepare wrangler.toml
+# Phase 4: Create .env File with Your Credentials
 
-Now that you have all **4 credentials**, fill them into your `wrangler.toml`:
+Now that you have all **4 credentials**, add them to a `.env` file in your project root.
 
-## Step 4.1: Open wrangler.toml
+## Step 4.1: Copy the Example File
 
-Located at the root of your CloudBrain project:
+Your project already has a `.env.example` template:
 ```
 cloudbrain/
-├── wrangler.toml  ← Edit this file
+├── .env.example  ← Template
+├── .env          ← Create this (ignored by Git - your actual credentials)
 ├── src/
 ├── package.json
 └── ...
 ```
 
-## Step 4.2: Fill in Environment Variables
+In your terminal:
 
-Find the section that looks like this:
-
-```toml
-[env.production]
-vars = {
-  TELEGRAM_BOT_TOKEN = "YOUR_TOKEN_HERE",
-  TELEGRAM_OWNER_ID = "YOUR_ID_HERE",
-  CLOUDFLARE_API_TOKEN = "YOUR_TOKEN_HERE",
-  CLOUDFLARE_ACCOUNT_ID = "YOUR_ID_HERE"
-}
+```bash
+cp .env.example .env
 ```
 
-Replace `YOUR_TOKEN_HERE` and `YOUR_ID_HERE` with your actual credentials:
+This creates a `.env` file with empty values.
 
-```toml
-[env.production]
-vars = {
-  TELEGRAM_BOT_TOKEN = "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk",
-  TELEGRAM_OWNER_ID = "9876543210",
-  CLOUDFLARE_API_TOKEN = "v1.0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p",
-  CLOUDFLARE_ACCOUNT_ID = "a1b2c3d4e5f6789abc123def456789ab"
-}
+## Step 4.2: Fill in Your Credentials
+
+Open the `.env` file in your editor and fill in your 4 values:
+
+```env
+# From @BotFather on Telegram
+TELEGRAM_BOT_TOKEN=1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk
+
+# Your personal Telegram ID from @userinfobot
+TELEGRAM_OWNER_ID=9876543210
+
+# From https://dash.cloudflare.com/profile/api-tokens
+CLOUDFLARE_API_TOKEN=v1.0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p
+
+# From https://dash.cloudflare.com/ (right sidebar)
+CLOUDFLARE_ACCOUNT_ID=a1b2c3d4e5f6789abc123def456789ab
 ```
 
-## Step 4.3: Verify AI Binding
+## Step 4.3: Save and Verify
 
-The `wrangler.toml` should also have the `AI` binding section (should already be there):
+- ✅ Save the `.env` file
+- ✅ Make sure it's in your project root (same folder as `package.json`)
+- ✅ `.env` is automatically ignored by Git (listed in `.gitignore`)
+
+### ⚠️ Security Note
+The `.env` file contains your secret credentials:
+- **Never commit it to Git**
+- **Never share it with anyone**
+- It's in `.gitignore` — stays local only
+- If you push the repo, your credentials stay safe on your machine
+
+## Step 4.4: Verify AI Binding
+
+The `wrangler.toml` already has the `AI` binding configured:
 
 ```toml
-# This provides access to Cloudflare Workers AI
-[[ai]]
+[ai]
 binding = "AI"
 ```
 
@@ -336,20 +349,28 @@ If there are errors, something is wrong with your setup. Check:
 
 ## Step 5.3: Deploy to Cloudflare
 
+When you run the deploy command, Wrangler automatically reads your `.env` file and uses those credentials:
+
 ```bash
 npm run deploy
 ```
 
 This will:
-1. Compile your TypeScript code
-2. Deploy to Cloudflare Workers
-3. **Auto-provision** D1, KV, and R2 from your Cloudflare API token
-4. Set up the Telegram webhook
+1. Read your credentials from `.env`
+2. Compile your TypeScript code
+3. Deploy to Cloudflare Workers
+4. **Auto-provision** D1, KV, and R2 from your Cloudflare API token
+5. Set up the Telegram webhook
 
 You should see:
 ```
 ✓ Successfully published your Worker to example-cloudbrain.workers.dev
 ```
+
+If you get "credentials not found" errors:
+- Make sure `.env` file exists in your project root
+- Make sure all 4 values are filled in (no empty lines)
+- Restart your terminal after creating `.env`
 
 ## Step 5.4: Verify Deployment
 
@@ -371,7 +392,42 @@ You should see:
 
 ---
 
-# Phase 6: Troubleshooting
+# 🔒 Why .env Instead of Hardcoding?
+
+## The Security Issue with Hardcoding
+
+If you hardcode credentials in `wrangler.toml` or `package.json`:
+- ❌ They're visible in your code editor
+- ❌ They get committed to Git (and GitHub history forever)
+- ❌ Anyone who clones your repo sees your secrets
+- ❌ If your repo is public, credentials are public
+
+## Why `.env` is Better
+
+```
+.env                ← Your actual credentials (stays on your machine)
+├─ In .gitignore    ← Never uploaded to Git
+├─ Private          ← Only you see it
+
+.env.example        ← Template for others (safe to commit)
+├─ No real values   ← Just shows what's needed
+├─ In Git           ← Helps others set up
+
+wrangler.toml       ← Configuration (safe to commit)
+├─ Reads from .env  ← Gets credentials at runtime
+├─ In Git           ← Everyone shares the same setup
+```
+
+## How It Works
+
+1. You have `.env` with your real credentials (local only)
+2. When you run `npm run deploy`, Wrangler reads `.env` 
+3. Credentials are sent to Cloudflare, your `.env` stays local
+4. If someone clones your repo, they copy `.env.example` and fill in their own values
+
+**Result:** Your secrets are safe! 🎉
+
+---
 
 ## Issue: "Invalid CLOUDFLARE_ACCOUNT_ID"
 

@@ -59,12 +59,18 @@ For a detailed explanation of the token-first architecture and public deployment
 
 ✅ **AI binding is automatic** — no separate credential needed!
 
+### How It Works
+- Copy `.env.example` → `.env`
+- Fill in your 4 credentials in `.env`
+- Run `npm run deploy` — it automatically reads from `.env`
+- `.env` is in `.gitignore` — your credentials stay private!
+
 ### 👉 [See Complete Step-by-Step Deployment Guide →](./DEPLOY.md)
 
 The [DEPLOY.md](./DEPLOY.md) file contains:
 - ✅ Exact step-by-step instructions for getting each credential
 - ✅ Screenshots and direct links to every page
-- ✅ How to fill `wrangler.toml` with your credentials
+- ✅ How to create `.env` with your credentials
 - ✅ Deployment process
 - ✅ Troubleshooting solutions
 
