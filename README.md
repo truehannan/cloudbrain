@@ -48,26 +48,27 @@ For a detailed explanation of the token-first architecture and public deployment
 
 ---
 
-## Setup Guide
+## 🚀 Quick Start: Get Your Credentials & Deploy
 
-### Prerequisites
+**CloudBrain needs only 4 environment credentials:**
 
-1. **Cloudflare Account** (free tier works)
-   - Enable Workers
-   - Create a Cloudflare API token with access to Workers, D1, KV, and R2
+1. **TELEGRAM_BOT_TOKEN** — from @BotFather
+2. **TELEGRAM_OWNER_ID** — from @userinfobot
+3. **CLOUDFLARE_API_TOKEN** — from Cloudflare Dashboard
+4. **CLOUDFLARE_ACCOUNT_ID** — from Cloudflare Dashboard
 
-2. **Telegram Bot**
-   - Chat with [@BotFather](https://t.me/BotFather) on Telegram
-   - Create a new bot and get `TELEGRAM_BOT_TOKEN`
+✅ **AI binding is automatic** — no separate credential needed!
 
-3. **Node.js & npm** (v18+)
+### 👉 [See Complete Step-by-Step Deployment Guide →](./DEPLOY.md)
 
-4. **Wrangler CLI**
-   ```bash
-   npm install -g wrangler
-   ```
+The [DEPLOY.md](./DEPLOY.md) file contains:
+- ✅ Exact step-by-step instructions for getting each credential
+- ✅ Screenshots and direct links to every page
+- ✅ How to fill `wrangler.toml` with your credentials
+- ✅ Deployment process
+- ✅ Troubleshooting solutions
 
-5. **Git**
+**Takes about 15 minutes!**
 
 ---
 

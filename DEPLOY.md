@@ -1,434 +1,440 @@
-# CloudBrain Complete Setup & Deployment Guide
+# CloudBrain Deployment Guide
 
-This is your step-by-step guide to deploy CloudBrain from zero to Telegram.
-
----
-
-## Phase 1: Prepare Resources (30 minutes)
-
-### 1.1 Create Cloudflare D1 Database
-
-```bash
-wrangler d1 create cloudbrain
-```
-
-**Expected output:**
-```
-✅ Created database 'cloudbrain'
-Database ID: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-```
-
-**Action**: Copy the `Database ID` → You'll need this in Step 2.4
-
-### 1.2 Create Cloudflare KV Namespace
-
-```bash
-wrangler kv:namespace create cloudbrain
-```
-
-**Expected output:**
-```
-🎉 Created kv namespace.
-name = "cloudbrain"
-id = "abc123def456789abc123def456789ab"
-preview_id = "xyz987abc654xyz987abc654xyz987ab"
-```
-
-**Action**: Copy `id` and `preview_id` → You'll need these in Step 2.4
-
-### 1.3 Create R2 Bucket
-
-```bash
-wrangler r2 bucket create cloudbrain-files
-```
-
-**Expected output:**
-```
-Creating bucket 'cloudbrain-files'...
-✓ Successfully created the R2 bucket 'cloudbrain-files'
-```
-
-### 1.4 Get Cloudflare Account ID
-
-Visit: https://dash.cloudflare.com/
-
-Look for your Account ID in one of these places:
-- Top right corner (shows in dropdown)
-- In the URL bar (subdomain before `.cloudflare.com`)
-- Or click account dropdown → copy ID
-
-**Action**: Copy your `Account ID` → You'll need this in Step 2.4
-
-### 1.5 Create Cloudflare API Token
-
-1. Go to: https://dash.cloudflare.com/profile/api-tokens
-2. Click **"Create Token"**
-3. Select **"Custom token"** (not "Create from template")
-4. **Permissions** (select all):
-   - ✓ Workers Scripts - **Edit**
-   - ✓ Workers Scripts - **Delete**
-   - ✓ D1 - **Edit**
-   - ✓ KV - **Write**
-   - ✓ R2 - **Write**
-5. **Account Resources**: ✓ Include all accounts
-6. Click **"Create Token"**
-7. **Copy the token** (you won't see it again!)
-
-**Action**: Copy your `API Token` → You'll need this in Step 2.4
-
-### 1.6 Create Telegram Bot
-
-1. Open Telegram
-2. Search for [@BotFather](https://t.me/BotFather)
-3. Send: `/newbot`
-4. Follow the prompts:
-   - **Name**: CloudBrain (or your choice)
-   - **Username**: `cloudbrain_bot` (must end with `_bot`)
-5. You'll get a message with:
-   ```
-   Use this token to access the HTTP API:
-   123456789:ABCdefGHIjklmnoPQRstu-vwxyzABC
-   ```
-
-**Action**: Copy your `Bot Token` → You'll need this in Step 2.4
-
-### 1.7 Get Your Telegram ID
-
-1. Search for [@userinfobot](https://t.me/userinfobot) on Telegram
-2. Send: `/start`
-3. It will reply with your ID, something like:
-   ```
-   Your user ID: 987654321
-   ```
-
-**Action**: Copy your `Telegram ID` → You'll need this in Step 2.4
+Complete step-by-step instructions for obtaining credentials and deploying CloudBrain to your Cloudflare account.
 
 ---
 
-## Phase 2: Configure CloudBrain (10 minutes)
+## 📋 Overview: What You Need
 
-### 2.1 Open CloudBrain Project
+CloudBrain requires **4 environment credentials** for deployment:
 
-```bash
-cd C:\Users\Microsoft\cloudbrain
+| Name | What It Is | Where to Get It |
+|------|-----------|-----------------|
+| `TELEGRAM_BOT_TOKEN` | Your Telegram bot's API token | @BotFather on Telegram |
+| `TELEGRAM_OWNER_ID` | Your personal Telegram user ID | @userinfobot on Telegram |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare account API token | Cloudflare Dashboard |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID | Cloudflare Dashboard |
+
+**Note on AI**: Workers AI is **automatic** — no separate credential needed. It's a built-in binding available to all Cloudflare Workers.
+
+---
+
+# Phase 1: Get Your Telegram Credentials
+
+## Step 1.1: Get TELEGRAM_BOT_TOKEN
+
+### What It Is
+A unique token that authenticates your Telegram bot. It allows CloudBrain to send and receive messages on Telegram.
+
+### How to Get It
+
+1. **Open Telegram** and search for `@BotFather`
+   - This is Telegram's official bot for creating bots
+
+2. **Start the conversation**
+   - Click "Start" or send `/start`
+
+3. **Create a new bot**
+   - Send: `/newbot`
+   - BotFather asks: *"Alright! Send me a name for your new bot. Please remember that bot names must end in 'bot'."*
+
+4. **Name your bot**
+   - Reply with any name, e.g.: `CloudBrain` or `MyAIBot`
+   - (This is just for display, not used in the token)
+
+5. **Set the bot's username**
+   - BotFather asks: *"Good. Now let's choose a username for your bot. It must end with bot; e.g., TetrisBot or tetris_bot."*
+   - Reply with a unique username, e.g.: `my_cloudbrain_bot` or `cloudbrain_ai_2026`
+   - ⚠️ Must end with `_bot` and must be globally unique on Telegram
+   - If taken, try variations like `cloudbrain_yourname_bot`
+
+6. **Copy your token**
+   - BotFather replies:
+     ```
+     Done! Congratulations on your new bot. You will find it at t.me/my_cloudbrain_bot
+     
+     Use this token to access the HTTP API:
+     1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk
+     
+     Keep your token secure and store it safely!
+     ```
+
+### 💾 Save This
 ```
-
-### 2.2 Copy Environment Example
-
-```bash
-cp .env.example .env
-```
-
-### 2.3 Edit `.env` file
-
-Open `C:\Users\Microsoft\cloudbrain\.env` in your editor and fill in:
-
-```env
-TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklmnoPQRstu-vwxyzABC
-TELEGRAM_OWNER_ID=987654321
-CLOUDFLARE_ACCOUNT_ID=abc123def456ghi789
-CLOUDFLARE_API_TOKEN=v1.0abc123def456ghi789jkl
-```
-
-**Action**: Save the file
-
-### 2.4 Edit `wrangler.toml`
-
-Open `C:\Users\Microsoft\cloudbrain\wrangler.toml` and replace these sections:
-
-Find this:
-```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "cloudbrain"
-database_id = "00000000-0000-0000-0000-000000000000"
-```
-
-Replace with (use your Database ID from Step 1.1):
-```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "cloudbrain"
-database_id = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+TELEGRAM_BOT_TOKEN=1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk
 ```
 
 ---
 
-Find this:
-```toml
-[[kv_namespaces]]
-binding = "KV"
-id = "00000000000000000000000000000000"
-```
+## Step 1.2: Get TELEGRAM_OWNER_ID
 
-Replace with (use your KV ID from Step 1.2):
-```toml
-[[kv_namespaces]]
-binding = "KV"
-id = "abc123def456789abc123def456789ab"
-preview_id = "xyz987abc654xyz987abc654xyz987ab"
+### What It Is
+Your personal Telegram user ID. CloudBrain uses this to verify that commands are coming from you (the owner).
+
+### How to Get It
+
+1. **Open Telegram** and search for `@userinfobot`
+   - This bot automatically shows your Telegram user information
+
+2. **Start the conversation**
+   - Click "Start" or send any message
+
+3. **Read your user ID**
+   - userinfobot automatically replies:
+     ```
+     👤 User info:
+     
+     ├ Id: 9876543210
+     ├ First name: John
+     ├ Last name: Doe
+     ├ Username: @john_doe
+     ├ Language: en
+     └ Is bot: No
+     ```
+
+4. **Copy the ID**
+   - The `Id:` field is your `TELEGRAM_OWNER_ID`
+   - Just the numbers, e.g., `9876543210`
+
+### 💾 Save This
+```
+TELEGRAM_OWNER_ID=9876543210
 ```
 
 ---
 
-Find this:
-```toml
-[env.production]
-vars = { TELEGRAM_BOT_TOKEN = "", TELEGRAM_OWNER_ID = "", CLOUDFLARE_API_TOKEN = "", CLOUDFLARE_ACCOUNT_ID = "" }
+# Phase 2: Get Your Cloudflare Credentials
+
+## Step 2.1: Get CLOUDFLARE_ACCOUNT_ID
+
+### What It Is
+Your unique Cloudflare account identifier. CloudBrain uses this to create and manage D1, KV, and R2 resources under your account.
+
+### Prerequisites
+- **Free Cloudflare account** (if you don't have one)
+  - Go to https://dash.cloudflare.com/sign-up
+  - Sign up with your email
+
+### How to Get It
+
+**Option A: From Dashboard Home**
+1. Go to https://dash.cloudflare.com/
+2. Sign in with your Cloudflare credentials
+3. Look at the **right sidebar** under "Account"
+4. You'll see:
+   ```
+   Account
+   
+   Account ID
+   a1b2c3d4e5f6789abc123def456789ab
+   ```
+5. Click the copy icon or manually note the ID
+
+**Option B: From Settings**
+1. Go to https://dash.cloudflare.com/
+2. Click your **profile icon** (top right corner)
+3. Select **Settings**
+4. Click **Accounts** in the left sidebar
+5. Find your account and copy the **Account ID**
+
+### 💾 Save This
+```
+CLOUDFLARE_ACCOUNT_ID=a1b2c3d4e5f6789abc123def456789ab
 ```
 
-Replace with your values (from Phase 1):
+---
+
+## Step 2.2: Get CLOUDFLARE_API_TOKEN
+
+### What It Is
+A secure API token that allows CloudBrain to create and manage Cloudflare services (D1, KV, R2) on your behalf.
+
+### ⚠️ Security Notes
+- **Never commit this token to Git** (it's like a password)
+- **Never share this token** with anyone
+- **Treat it like a password** — keep it secret
+- You can rotate/delete tokens anytime from the Cloudflare Dashboard
+
+### How to Get It
+
+1. **Go to API Tokens page**
+   - https://dash.cloudflare.com/profile/api-tokens
+   - Or: Click your **profile icon** (top right) → **My Profile** → **API Tokens**
+
+2. **Click "Create Token"** (blue button)
+
+3. **Select Custom Token**
+   - You'll see templates like "Edit Cloudflare Workers", "Edit Supabase", etc.
+   - Scroll down and click **"Custom token"** (not a template)
+
+4. **Set Token Name**
+   - Enter: `CloudBrain` or `CloudBrain API Token`
+   - (This is just for your reference)
+
+5. **Add Permissions** — You need these 5 permissions:
+
+   Click "Add more" to add each one:
+   - ✅ **Account** › **Workers Scripts** › **Edit**
+   - ✅ **Account** › **Workers Scripts** › **Delete**
+   - ✅ **Account** › **D1** › **Edit**
+   - ✅ **Account** › **KV** › **Write**
+   - ✅ **Account** › **R2** › **Write**
+
+   (You may also see "Read" options — those are fine to include for monitoring)
+
+6. **Set Account Resources**
+   - Under "Account Resources", select:
+     - ✅ **"Include All accounts"** (or select your specific account if you have multiple)
+
+7. **Set TTL (Optional)**
+   - Default is fine (no expiration)
+   - Or set an expiration date for security (e.g., 90 days)
+
+8. **Click "Create Token"** (blue button at bottom)
+
+9. **⚠️ Copy Your Token Immediately**
+   - You'll see your token:
+     ```
+     v1.0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p
+     ```
+   - **You will NOT be able to see this again!**
+   - Copy it now to a secure location
+   - If you lose it, delete and create a new one
+
+### 💾 Save This
+```
+CLOUDFLARE_API_TOKEN=v1.0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p
+```
+
+---
+
+# Phase 3: Understanding AI Binding
+
+## ❓ What About "AI Binding"?
+
+You might have noticed we only need **4 credentials**. But CloudBrain uses **AI models** (Mistral, Stable Diffusion, Whisper). So where's the AI credential?
+
+### 🤖 Answer: AI is **Automatic**
+
+**Workers AI is a built-in Cloudflare service**:
+- ✅ No separate credential needed
+- ✅ No API token required
+- ✅ Automatically available in all Cloudflare Workers
+- ✅ One binding (`AI`) gives you access to **all model types**:
+  - **Text generation**: Mistral LLM
+  - **Image generation**: Stable Diffusion
+  - **Audio transcription**: Whisper
+
+### In Your Code
+
+CloudBrain accesses AI via the `AI` binding (already configured in `wrangler.toml`):
+
+```typescript
+// Text chat with Mistral
+const response = await env.AI.run("@cf/mistral/mistral-7b-instruct-v0.2", {
+  messages: [{role: "user", content: "What is 2+2?"}]
+})
+
+// Image generation with Stable Diffusion
+const image = await env.AI.run("@cf/stabilityai/stable-diffusion-xl-generate", {
+  prompt: "A cat sitting on a keyboard"
+})
+
+// Audio transcription with Whisper
+const transcript = await env.AI.run("@cf/openai/whisper", {
+  audio: audioBuffer
+})
+```
+
+### ✅ No Additional Setup Needed
+- The `wrangler.toml` already includes the `AI` binding
+- You don't need to create or configure anything
+- It just works! 🎉
+
+---
+
+# Phase 4: Prepare wrangler.toml
+
+Now that you have all **4 credentials**, fill them into your `wrangler.toml`:
+
+## Step 4.1: Open wrangler.toml
+
+Located at the root of your CloudBrain project:
+```
+cloudbrain/
+├── wrangler.toml  ← Edit this file
+├── src/
+├── package.json
+└── ...
+```
+
+## Step 4.2: Fill in Environment Variables
+
+Find the section that looks like this:
+
 ```toml
 [env.production]
 vars = {
-  TELEGRAM_BOT_TOKEN = "123456789:ABCdefGHIjklmnoPQRstu-vwxyzABC",
-  TELEGRAM_OWNER_ID = "987654321",
-  CLOUDFLARE_API_TOKEN = "v1.0abc123def456ghi789jkl",
-  CLOUDFLARE_ACCOUNT_ID = "abc123def456ghi789"
+  TELEGRAM_BOT_TOKEN = "YOUR_TOKEN_HERE",
+  TELEGRAM_OWNER_ID = "YOUR_ID_HERE",
+  CLOUDFLARE_API_TOKEN = "YOUR_TOKEN_HERE",
+  CLOUDFLARE_ACCOUNT_ID = "YOUR_ID_HERE"
 }
 ```
 
-Also update `[env.development]` with the same values.
+Replace `YOUR_TOKEN_HERE` and `YOUR_ID_HERE` with your actual credentials:
 
-**Action**: Save the file
+```toml
+[env.production]
+vars = {
+  TELEGRAM_BOT_TOKEN = "1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk",
+  TELEGRAM_OWNER_ID = "9876543210",
+  CLOUDFLARE_API_TOKEN = "v1.0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p",
+  CLOUDFLARE_ACCOUNT_ID = "a1b2c3d4e5f6789abc123def456789ab"
+}
+```
+
+## Step 4.3: Verify AI Binding
+
+The `wrangler.toml` should also have the `AI` binding section (should already be there):
+
+```toml
+# This provides access to Cloudflare Workers AI
+[[ai]]
+binding = "AI"
+```
+
+You don't need to change anything here — it's automatic.
 
 ---
 
-## Phase 3: Deploy CloudBrain (20 minutes)
+# Phase 5: Deploy CloudBrain
 
-### 3.1 Install Dependencies
+Once you've filled in all credentials, deploy to Cloudflare:
+
+## Step 5.1: Install Dependencies
 
 ```bash
+cd cloudbrain
 npm install
 ```
 
-### 3.2 Initialize Database
+## Step 5.2: Verify TypeScript Compilation
 
 ```bash
-wrangler d1 execute cloudbrain --file=schema.sql --remote
+npm run type-check
 ```
 
-**Expected output:**
+You should see:
 ```
-🌍 https://dash.cloudflare.com/...
-Executed SQL: `...` on cloudbrain (ID: a1b2c3d4-e5f6-7890-abcd-ef1234567890)
-```
-
-Verify tables created:
-
-```bash
-wrangler d1 shell cloudbrain --remote
+✓ No errors found
 ```
 
-Then run:
-```sql
-SELECT name FROM sqlite_master WHERE type='table';
-```
+If there are errors, something is wrong with your setup. Check:
+- Are all 4 credentials filled in `wrangler.toml`?
+- Is your `CLOUDFLARE_ACCOUNT_ID` in the correct format (32 hex characters)?
 
-Should show:
-```
-users
-messages
-automations
-credentials
-files
-action_logs
-```
-
-Type `.exit` to quit the shell.
-
-### 3.3 Deploy Worker
+## Step 5.3: Deploy to Cloudflare
 
 ```bash
 npm run deploy
 ```
 
-**Expected output:**
+This will:
+1. Compile your TypeScript code
+2. Deploy to Cloudflare Workers
+3. **Auto-provision** D1, KV, and R2 from your Cloudflare API token
+4. Set up the Telegram webhook
+
+You should see:
 ```
-✨ Build complete! Deploying...
-✨ Uploading CloudBrain...
-✨ Deployment complete!
-🌍 Your worker is live at: https://cloudbrain.yourdomain.workers.dev
+✓ Successfully published your Worker to example-cloudbrain.workers.dev
 ```
 
-**Action**: Copy your worker URL
+## Step 5.4: Verify Deployment
+
+1. **Test Telegram bot**
+   - Open Telegram and search for your bot (e.g., `my_cloudbrain_bot`)
+   - Send: `/start`
+   - Bot should respond with a welcome message
+
+2. **Test AI**
+   - Send: `What is 2+2?`
+   - CloudBrain should respond with the correct answer
+
+3. **Check Cloudflare Dashboard**
+   - Go to https://dash.cloudflare.com/
+   - Check **Workers** → Your worker name should be listed
+   - Check **D1** → New database `cloudbrain` should be created
+   - Check **KV** → New namespace `cloudbrain` should be created
+   - Check **R2** → New bucket `cloudbrain-storage` should be created
 
 ---
 
-## Phase 4: Connect Telegram (10 minutes)
+# Phase 6: Troubleshooting
 
-### 4.1 Register Webhook with Telegram
+## Issue: "Invalid CLOUDFLARE_ACCOUNT_ID"
 
-Replace `YOUR_BOT_TOKEN` and `YOUR_WORKER_URL`:
-
-```bash
-curl -X POST https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook \
-  -H "Content-Type: application/json" \
-  -d '{"url":"<YOUR_WORKER_URL>/webhook/telegram"}'
+**Solution**: Make sure your Account ID is 32 hex characters (letters/numbers), like:
+```
+a1b2c3d4e5f6789abc123def456789ab
 ```
 
-**Example:**
-```bash
-curl -X POST https://api.telegram.org/bot123456789:ABCdefGHIjklmnoPQRstu-vwxyzABC/setWebhook \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://cloudbrain.yourdomain.workers.dev/webhook/telegram"}'
-```
-
-**Expected response:**
-```json
-{"ok":true,"result":true,"description":"Webhook was set"}
-```
-
-### 4.2 Verify Webhook
-
-```bash
-curl https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo
-```
-
-**Expected response:**
-```json
-{
-  "ok": true,
-  "result": {
-    "url": "https://cloudbrain.yourdomain.workers.dev/webhook/telegram",
-    "has_custom_certificate": false,
-    "pending_update_count": 0
-  }
-}
-```
+Not a full URL or email address.
 
 ---
 
-## Phase 5: Test CloudBrain (5 minutes)
+## Issue: "TELEGRAM_BOT_TOKEN is invalid"
 
-### 5.1 Start Conversation
-
-Open Telegram and send a message to your `cloudbrain_bot`:
-
+**Solution**: Make sure your token is in the format:
 ```
-/start
+1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk
 ```
 
-**Expected response:**
-```
-👋 Welcome to CloudBrain! I'm your AI agent running on Cloudflare.
-Type anything to chat or use /help for commands.
-```
-
-### 5.2 List Commands
-
-```
-/help
-```
-
-**Expected response:**
-```
-🤖 Personal AI Agent — Commands
-
-/start — Register as owner
-/help — This message
-...
-```
-
-### 5.3 Test Connection
-
-```
-/ping
-```
-
-**Expected response:**
-```
-🟢 Pong!
-```
-
-### 5.4 Check Status
-
-```
-/status
-```
-
-**Expected response:**
-```
-🟢 Agent is alive and running on Cloudflare!
-```
+With a number, colon, and long alphanumeric string.
 
 ---
 
-## Phase 6: Push to GitHub (10 minutes)
+## Issue: "npm run deploy fails with permission denied"
 
-Follow instructions in [GITHUB_PUSH.md](./GITHUB_PUSH.md)
-
-**Quick version:**
-1. Go to https://github.com/new
-2. Create repo: `cloudbrain` (Public)
-3. Run:
-   ```bash
-   git remote add origin https://github.com/truehannan/cloudbrain.git
-   git push -u origin main
-   ```
+**Solution**: Your `CLOUDFLARE_API_TOKEN` doesn't have the required permissions. Go back to Step 2.2 and make sure you added all 5 permissions:
+- ✅ Account › Workers Scripts › Edit
+- ✅ Account › Workers Scripts › Delete
+- ✅ Account › D1 › Edit
+- ✅ Account › KV › Write
+- ✅ Account › R2 › Write
 
 ---
 
-## Checklist: You're Done! ✅
+## Issue: "Telegram bot doesn't respond"
 
-- [x] Phase 1: Created all Cloudflare resources
-- [x] Phase 2: Configured CloudBrain with credentials
-- [x] Phase 3: Deployed to Cloudflare Workers
-- [x] Phase 4: Connected Telegram webhook
-- [x] Phase 5: Tested via Telegram
-- [x] Phase 6: Pushed to GitHub
-
----
-
-## What's Next?
-
-### Monitor Your Bot
-
-```bash
-wrangler tail
-```
-
-Watch live logs as you chat.
-
-### Try More Commands
-
-```
-/database    → See database tables
-/storage     → List your R2 files
-/ask what is 2+2?   → Ask a question
-```
-
-### Customize
-
-- Edit `src/telegram.ts` to add custom commands
-- Modify `schema.sql` to add database tables
-- Change AI model in `src/actions.ts`
-
-### Auto-Deploy (Optional)
-
-Set up GitHub Actions:
-
-1. Go to your repo → Settings → Secrets and variables → Actions
-2. Add secrets:
-   - `CLOUDFLARE_API_TOKEN`
-   - `CLOUDFLARE_ACCOUNT_ID`
-3. GitHub Actions will auto-deploy on every push to `main`
+**Solution**: Make sure:
+1. Your `TELEGRAM_BOT_TOKEN` is correct (from @BotFather)
+2. Your `TELEGRAM_OWNER_ID` is correct (from @userinfobot)
+3. Worker was deployed successfully (no errors in `npm run deploy`)
+4. You sent a message in Telegram to your bot
 
 ---
 
-## Support
+# 🎉 Success!
 
-- **README**: [README.md](./README.md) - Full documentation
-- **Setup Checklist**: [SETUP.md](./SETUP.md) - Quick reference
-- **Contributing**: [CONTRIBUTING.md](./CONTRIBUTING.md) - How to improve CloudBrain
-- **Troubleshooting**: See README.md "Troubleshooting" section
+Your CloudBrain instance is now running! You can:
+
+- 💬 **Chat with AI** via Telegram (text, image, audio)
+- 📊 **Store data** in D1 database
+- 📁 **Upload files** to R2 storage
+- ⏰ **Create automations** with scheduled workers
+- 🔄 **Scale infinitely** on Cloudflare's edge network
+
+For usage examples, see [README.md](./README.md).
 
 ---
 
-**🎉 Congratulations! CloudBrain is live on Cloudflare!** 
+# 📚 Need More Help?
 
-Your personal AI infrastructure is now serverless, scalable, and fully automated. 🚀
+- **Cloudflare Workers Docs**: https://developers.cloudflare.com/workers/
+- **Workers AI Docs**: https://developers.cloudflare.com/workers-ai/
+- **Telegram Bot API**: https://core.telegram.org/bots/api
+- **D1 Documentation**: https://developers.cloudflare.com/d1/
 
----
-
-**Questions?** Check the README or open an issue on GitHub.
+Good luck! 🚀
