@@ -1,6 +1,11 @@
 # CloudBrain Architecture - Public Deployment Model
 
-This document explains how CloudBrain is designed for anyone to deploy to their own Cloudflare account.
+CloudBrain now uses a token-first deployment model:
+- Your Cloudflare API token provisions and operates D1, KV, and R2.
+- The only Worker binding you keep is AI.
+- Each user deploys their own isolated instance.
+
+This document describes the public deployment model and why the API token replaces the old manual binding workflow.
 
 ---
 

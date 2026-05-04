@@ -5,25 +5,25 @@ An AI agent running on **Cloudflare Workers**, controlled via **Telegram**, with
 ## Features
 
 ✅ **Serverless Infrastructure** — Runs entirely on Cloudflare Workers (no VPS, no ops)  
-✅ **AI-Powered** — Uses Cloudflare AI Gateway (100k requests/day free tier)  
+✅ **AI-Powered** — Uses Cloudflare Workers AI through the `AI` binding  
 ✅ **Telegram Interface** — Full natural language chat via Telegram  
-✅ **Persistent Storage** — D1 database (SQLite) for user data, automations, history  
-✅ **File Management** — R2 bucket for uploads, downloads, storage  
-✅ **Lightning-Fast Cache** — KV namespace for sessions and state  
+✅ **Persistent Storage** — D1 is auto-provisioned from your Cloudflare API token  
+✅ **File Management** — KV-backed file payload storage is auto-provisioned from your Cloudflare API token  
+✅ **Lightning-Fast Cache** — KV namespace is auto-provisioned from your Cloudflare API token  
 ✅ **Dynamic Automations** — Create worker scripts for scheduled/triggered tasks  
 ✅ **Multi-Model AI** — Mistral, Whisper (audio), Stable Diffusion (images)  
-✅ **Self-Hosted** — Deploy to your own Cloudflare account in 1 hour  
+✅ **Self-Hosted** — Deploy to your own Cloudflare account with your own token  
 ✅ **Type-Safe** — Full TypeScript support  
 
 ## Quick Overview
 
-CloudBrain is a personal AI assistant that lives on Cloudflare. Send it natural language commands via Telegram, and it:
+CloudBrain is a personal AI assistant that lives on Cloudflare. It bootstraps its own D1 database, KV namespace, and R2 bucket from your Cloudflare API token, then you can send it natural language commands via Telegram. It:
 
 - **Answers questions** using Mistral LLM
 - **Generates images** via Stable Diffusion
 - **Transcribes audio** via Whisper
 - **Stores data** in D1 database
-- **Manages files** in R2 storage
+- **Keeps file payloads** in KV-backed storage
 - **Creates automations** (dynamic workers with cron schedules)
 - **Scales infinitely** — Cloudflare handles load automatically
 
@@ -31,19 +31,18 @@ CloudBrain is a personal AI assistant that lives on Cloudflare. Send it natural 
 
 ## 🏗️ Architecture & Deployment Model
 
-CloudBrain is **fully self-hosted**. You deploy it to **your own Cloudflare account** with your own:
-- D1 Database (your data)
-- KV Cache (your sessions)
-- R2 Storage (your files)
-- Telegram Bot (your bot)
+CloudBrain is **fully self-hosted**. You deploy it to **your own Cloudflare account** with:
+- A Cloudflare API token that provisions and operates your services
+- A Telegram bot token for inbound and outbound messages
+- One AI binding (`AI`)
 
 **This means**:
 - ✅ You own all your data
 - ✅ No central server or SaaS
-- ✅ Takes 1 hour to set up
+- ✅ Only one binding is needed
 - ✅ Free tier covers most users
 
-For a detailed explanation of bindings, AI models, and public deployment, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+For a detailed explanation of the token-first architecture and public deployment, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ---
 
@@ -53,13 +52,11 @@ For a detailed explanation of bindings, AI models, and public deployment, see [A
 
 1. **Cloudflare Account** (free tier works)
    - Enable Workers
-   - Create D1 database
-   - Create KV namespace
-   - Create R2 bucket
+   - Create a Cloudflare API token with access to Workers, D1, KV, and R2
 
 2. **Telegram Bot**
    - Chat with [@BotFather](https://t.me/BotFather) on Telegram
-   - Create new bot, get `TELEGRAM_BOT_TOKEN`
+   - Create a new bot and get `TELEGRAM_BOT_TOKEN`
 
 3. **Node.js & npm** (v18+)
 
@@ -72,7 +69,9 @@ For a detailed explanation of bindings, AI models, and public deployment, see [A
 
 ---
 
-### Step 1: Create Cloudflare Resources
+### Legacy Setup (Old Flow)
+
+The current worker auto-provisions D1, KV, and R2 from your Cloudflare API token. The section below is kept only as historical reference.
 
 #### 1.1 D1 Database
 
@@ -111,21 +110,9 @@ wrangler r2 bucket create cloudbrain-files
 
 This creates bucket: `cloudbrain-files`
 
-#### 1.4 Get Your Credentials
-
-From Cloudflare Dashboard:
-- **Account ID**: Dashboard → Account Home → copy the ID in the URL or right panel
-- **API Token**: Settings → API Tokens → Create Custom Token
-  - Permissions needed:
-    - `workers.scripts:write`
     - `workers.scripts:delete`
-    - `d1:edit`
     - `kv:write`
     - `r2:write`
-
----
-
-### Step 2: Configure Environment
 
 Edit `wrangler.toml`:
 
@@ -143,10 +130,6 @@ database_id = "YOUR_DATABASE_ID_HERE"  # ← PASTE FROM STEP 1.1
 
 # ── KV Namespace ──
 [[kv_namespaces]]
-binding = "KV"
-id = "YOUR_KV_ID_HERE"  # ← PASTE FROM STEP 1.2
-preview_id = "YOUR_KV_PREVIEW_ID_HERE"  # ← OPTIONAL
-
 # ── R2 Bucket ──
 [[r2_buckets]]
 binding = "BUCKET"
@@ -163,29 +146,14 @@ vars = {
 
 [env.development]
 vars = {
-  TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE",
-  TELEGRAM_OWNER_ID = "YOUR_TELEGRAM_ID_HERE",
-  CLOUDFLARE_API_TOKEN = "YOUR_API_TOKEN_HERE",
-  CLOUDFLARE_ACCOUNT_ID = "YOUR_ACCOUNT_ID_HERE"
 }
 
 # ── Scheduled Automations (Optional) ──
 [triggers.crons]
 crons = ["0 * * * *"]  # Every hour
-```
-
-#### Getting TELEGRAM_OWNER_ID
-
 Send any message to a Telegram bot that has `/id` command (e.g., [@userinfobot](https://t.me/userinfobot)), and it will reply with your ID.
 
 ---
-
-### Step 3: Clone & Install
-
-```bash
-git clone https://github.com/truehannan/cloudbrain.git
-cd cloudbrain
-npm install
 ```
 
 ---

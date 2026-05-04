@@ -1,18 +1,20 @@
 import { CloudBrainEnv } from './types';
+import { deleteKVValue, getKVValue, putKVValue } from './cloudflare-api';
 
 export async function getSession(key: string, env: CloudBrainEnv): Promise<any> {
-  const value = await env.KV.get(key);
+  const value = await getKVValue(env, key);
   return value ? JSON.parse(value) : null;
 }
 
 export async function setSession(key: string, value: any, ttl?: number, env?: CloudBrainEnv): Promise<void> {
   if (!env) return;
   const expirationTtl = ttl || 86400; // Default 1 day
-  await env.KV.put(key, JSON.stringify(value), { expirationTtl });
+  void expirationTtl;
+  await putKVValue(env, key, JSON.stringify(value));
 }
 
 export async function deleteSession(key: string, env: CloudBrainEnv): Promise<void> {
-  await env.KV.delete(key);
+  await deleteKVValue(env, key);
 }
 
 export async function getConversationContext(userId: number, env: CloudBrainEnv): Promise<any> {

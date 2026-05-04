@@ -1,9 +1,7 @@
 // Type definitions for CloudBrain
 
 export interface CloudBrainEnv {
-  DB: D1Database;
-  KV: KVNamespace;
-  BUCKET: R2Bucket;
+  AI: any;
   TELEGRAM_BOT_TOKEN: string;
   TELEGRAM_OWNER_ID: string;
   CLOUDFLARE_API_TOKEN: string;

@@ -1,4 +1,5 @@
 import { CloudBrainEnv, ActionResult, Automation } from './types';
+import { deleteData, insertData, queryDatabase } from './db';
 
 export async function createWorkerAutomation(
   name: string,
@@ -33,14 +34,19 @@ export async function createWorkerAutomation(
       return { success: false, message: 'Failed to deploy worker', error: createResult.error };
     }
 
-    // Store automation metadata in D1
-    const db = env.DB;
-    await db
-      .prepare(
-        'INSERT INTO automations (user_id, name, description, worker_name, trigger_type, trigger_config, status) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      )
-      .bind(1, name, description, workerName, trigger, JSON.stringify({ interval }), 'active')
-      .run();
+    await insertData(
+      'automations',
+      {
+        user_id: 1,
+        name,
+        description,
+        worker_name: workerName,
+        trigger_type: trigger,
+        trigger_config: JSON.stringify({ interval }),
+        status: 'active',
+      },
+      env
+    );
 
     return {
       success: true,
@@ -58,10 +64,8 @@ export async function createWorkerAutomation(
 
 export async function deleteWorkerAutomation(automationId: number, env: CloudBrainEnv): Promise<ActionResult> {
   try {
-    const db = env.DB;
-
-    // Get automation details
-    const automation = await db.prepare('SELECT * FROM automations WHERE id = ?').bind(automationId).first();
+    const automationResult = await queryDatabase('SELECT * FROM automations WHERE id = ? LIMIT 1', env, [automationId]);
+    const automation = automationResult.data?.[0] as Automation | undefined;
 
     if (!automation) {
       return { success: false, message: 'Automation not found' };
@@ -79,8 +83,7 @@ export async function deleteWorkerAutomation(automationId: number, env: CloudBra
       return { success: false, message: 'Failed to delete worker', error: deleteResult.error };
     }
 
-    // Delete from database
-    await db.prepare('DELETE FROM automations WHERE id = ?').bind(automationId).run();
+    await deleteData('automations', automationId, env);
 
     return { success: true, message: `Automation "${automation.name}" deleted` };
   } catch (error) {
@@ -141,18 +144,13 @@ async function callCloudflareAPI(path: string, method: string, body: any, env: C
 }
 
 export async function listUserAutomations(userId: number, env: CloudBrainEnv): Promise<Automation[]> {
-  const db = env.DB;
-  const automations = await db
-    .prepare('SELECT * FROM automations WHERE user_id = ? ORDER BY created_at DESC')
-    .bind(userId)
-    .all();
+  const automations = await queryDatabase('SELECT * FROM automations WHERE user_id = ? ORDER BY created_at DESC', env, [userId]);
 
-  return (automations.results || []) as Automation[];
+  return (automations.data || []) as Automation[];
 }
 
 export async function getAutomationStatus(automationId: number, env: CloudBrainEnv): Promise<string> {
-  const db = env.DB;
-  const automation = await db.prepare('SELECT status FROM automations WHERE id = ?').bind(automationId).first();
+  const automation = await queryDatabase('SELECT status FROM automations WHERE id = ? LIMIT 1', env, [automationId]);
 
-  return automation?.status || 'unknown';
+  return (automation.data?.[0] as { status?: string } | undefined)?.status || 'unknown';
 }

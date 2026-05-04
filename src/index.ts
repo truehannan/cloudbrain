@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { CloudBrainEnv, TelegramUpdate } from './types';
 import { handleTelegramWebhook } from './telegram';
+import { queryDatabase } from './db';
 
 const app = new Hono<{ Bindings: CloudBrainEnv }>();
 
@@ -25,9 +26,8 @@ app.get('/api/status', (c) => {
 });
 
 app.get('/api/automations', async (c) => {
-  const db = c.env.DB;
-  const automations = await db.prepare('SELECT * FROM automations LIMIT 10').all();
-  return c.json(automations);
+  const automations = await queryDatabase('SELECT * FROM automations LIMIT 10', c.env);
+  return c.json(automations.data);
 });
 
 // 404 handler

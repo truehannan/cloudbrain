@@ -1,4 +1,5 @@
 import { TelegramUpdate, TelegramMessage, CloudBrainEnv } from './types';
+import { listAutomationsForTelegramId, listDatabaseTables, listFilesForTelegramId, queryDatabase, storeMessage, upsertUser } from './db';
 
 export async function handleTelegramWebhook(update: TelegramUpdate, env: CloudBrainEnv): Promise<Response> {
   try {
@@ -182,49 +183,16 @@ async function sendMessage(chatId: number, text: string, env: CloudBrainEnv): Pr
   });
 }
 
-async function upsertUser(telegramId: number, name: string, env: CloudBrainEnv): Promise<void> {
-  const db = env.DB;
-  const result = await db
-    .prepare('SELECT id FROM users WHERE telegram_id = ?')
-    .bind(telegramId.toString())
-    .first();
-
-  if (!result) {
-    await db
-      .prepare('INSERT INTO users (telegram_id, telegram_name) VALUES (?, ?)')
-      .bind(telegramId.toString(), name)
-      .run();
-  } else {
-    await db
-      .prepare('UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE telegram_id = ?')
-      .bind(telegramId.toString())
-      .run();
-  }
-}
-
-async function storeMessage(userId: number, role: string, content: string, env: CloudBrainEnv): Promise<void> {
-  const db = env.DB;
-  const user = await db.prepare('SELECT id FROM users WHERE telegram_id = ?').bind(userId.toString()).first();
-
-  if (user) {
-    await db
-      .prepare('INSERT INTO messages (user_id, role, content) VALUES (?, ?, ?)')
-      .bind(user.id, role, content)
-      .run();
-  }
-}
-
 async function listStorage(userId: number, env: CloudBrainEnv): Promise<string> {
   try {
-    const db = env.DB;
-    const files = await db.prepare('SELECT filename, file_size, created_at FROM files WHERE user_id = (SELECT id FROM users WHERE telegram_id = ?)').bind(userId.toString()).all();
+    const files = await listFilesForTelegramId(userId, env);
 
-    if (!files.results || files.results.length === 0) {
+    if (files.length === 0) {
       return '📁 No files stored yet.';
     }
 
     let result = '📁 *Your Files:*\n\n';
-    files.results.slice(0, 10).forEach((f: any) => {
+    files.slice(0, 10).forEach((f: any) => {
       result += `• ${f.filename} (${f.file_size} bytes)\n`;
     });
     return result;
@@ -235,9 +203,8 @@ async function listStorage(userId: number, env: CloudBrainEnv): Promise<string> 
 
 async function getDatabaseInfo(userId: number, env: CloudBrainEnv): Promise<string> {
   try {
-    const db = env.DB;
-    const tables = await db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
-    return `📊 *Database Tables:*\n${tables.results?.map((t: any) => `• ${t.name}`).join('\n') || 'No tables'}`;
+    const tables = await listDatabaseTables(env);
+    return `📊 *Database Tables:*\n${tables.map((table) => `• ${table}`).join('\n') || 'No tables'}`;
   } catch (error) {
     return '❌ Error reading database.';
   }
@@ -245,18 +212,14 @@ async function getDatabaseInfo(userId: number, env: CloudBrainEnv): Promise<stri
 
 async function listAutomations(userId: number, env: CloudBrainEnv): Promise<string> {
   try {
-    const db = env.DB;
-    const automations = await db
-      .prepare('SELECT name, description, status FROM automations WHERE user_id = (SELECT id FROM users WHERE telegram_id = ?)')
-      .bind(userId.toString())
-      .all();
+    const automations = await listAutomationsForTelegramId(userId, env);
 
-    if (!automations.results || automations.results.length === 0) {
+    if (automations.length === 0) {
       return '🤖 No automations yet. Use /create to make one.';
     }
 
     let result = '🤖 *Your Automations:*\n\n';
-    automations.results.forEach((a: any) => {
+    automations.forEach((a: any) => {
       result += `• ${a.name} (${a.status})\n  ${a.description || 'No description'}\n\n`;
     });
     return result;
@@ -266,7 +229,16 @@ async function listAutomations(userId: number, env: CloudBrainEnv): Promise<stri
 }
 
 async function handleDatabaseQuery(params: any, userId: number, env: CloudBrainEnv): Promise<string> {
-  return '🔍 Database query would execute here (not implemented yet).';
+  if (!params?.query) {
+    return '🔍 Please provide a SQL query.';
+  }
+
+  const result = await queryDatabase(params.query, env);
+  if (!result.success) {
+    return `❌ ${result.error || 'Query failed.'}`;
+  }
+
+  return `🔍 Query result:\n${JSON.stringify(result.data, null, 2)}`;
 }
 
 async function createAutomation(params: any, userId: number, env: CloudBrainEnv): Promise<string> {

@@ -1,4 +1,5 @@
 import { CloudBrainEnv, ActionResult } from './types';
+import { listAutomationsForTelegramId, queryDatabase as runQueryDatabase } from './db';
 
 export async function executeAction(actionType: string, params: any, env: CloudBrainEnv): Promise<ActionResult> {
   switch (actionType) {
@@ -103,14 +104,13 @@ async function queryDatabase(params: any, env: CloudBrainEnv): Promise<ActionRes
       return { success: false, message: 'Query or table name required' };
     }
 
-    const db = env.DB;
     const sql = query || `SELECT * FROM ${table}`;
-    const result = await db.prepare(sql).all();
+    const result = await runQueryDatabase(sql, env);
 
     return {
       success: true,
       message: 'Query executed',
-      data: result.results,
+      data: result.data,
     };
   } catch (error) {
     return {
@@ -129,16 +129,16 @@ async function listAutomations(params: any, env: CloudBrainEnv): Promise<ActionR
       return { success: false, message: 'User ID required' };
     }
 
-    const db = env.DB;
-    const automations = await db
-      .prepare('SELECT name, description, status FROM automations WHERE user_id = ?')
-      .bind(userId)
-      .all();
+    const automations = await listAutomationsForTelegramId(userId, env);
 
     return {
       success: true,
       message: 'Automations listed',
-      data: automations.results,
+      data: automations.map((automation) => ({
+        name: automation.name,
+        description: automation.description,
+        status: automation.status,
+      })),
     };
   } catch (error) {
     return {
