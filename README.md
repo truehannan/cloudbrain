@@ -1,5 +1,7 @@
 # CloudBrain 🧠☁️
 
+![Cloudbrain](cloudbrain.png)
+
 An AI agent running on **Cloudflare Workers**, controlled via **Telegram**, with native access to all Cloudflare services.
 
 ## Features
