@@ -1,0 +1,31 @@
+name = "cloudbrain"
+main = "src/index.ts"
+compatibility_date = "2024-01-10"
+compatibility_flags = ["nodejs_compat"]
+
+# Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "cloudbrain"
+database_id = "00000000-0000-0000-0000-000000000000"
+
+# KV for sessions & state
+[[kv_namespaces]]
+binding = "KV"
+id = "00000000000000000000000000000000"
+
+# R2 for file storage
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "cloudbrain-files"
+
+# Environment variables (secrets)
+[env.production]
+vars = { TELEGRAM_BOT_TOKEN = "", TELEGRAM_OWNER_ID = "", CLOUDFLARE_API_TOKEN = "", CLOUDFLARE_ACCOUNT_ID = "" }
+
+[env.development]
+vars = { TELEGRAM_BOT_TOKEN = "", TELEGRAM_OWNER_ID = "", CLOUDFLARE_API_TOKEN = "", CLOUDFLARE_ACCOUNT_ID = "" }
+
+# Triggers for scheduled automations
+[triggers.crons]
+crons = ["0 * * * *"]
