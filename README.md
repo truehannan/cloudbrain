@@ -12,7 +12,7 @@ An AI agent running on **Cloudflare Workers**, controlled via **Telegram**, with
 ✅ **Lightning-Fast Cache** — KV namespace for sessions and state  
 ✅ **Dynamic Automations** — Create worker scripts for scheduled/triggered tasks  
 ✅ **Multi-Model AI** — Mistral, Whisper (audio), Stable Diffusion (images)  
-✅ **Auto-Deploy** — GitHub Actions CI/CD pipeline included  
+✅ **Self-Hosted** — Deploy to your own Cloudflare account in 1 hour  
 ✅ **Type-Safe** — Full TypeScript support  
 
 ## Quick Overview
@@ -26,6 +26,24 @@ CloudBrain is a personal AI assistant that lives on Cloudflare. Send it natural 
 - **Manages files** in R2 storage
 - **Creates automations** (dynamic workers with cron schedules)
 - **Scales infinitely** — Cloudflare handles load automatically
+
+---
+
+## 🏗️ Architecture & Deployment Model
+
+CloudBrain is **fully self-hosted**. You deploy it to **your own Cloudflare account** with your own:
+- D1 Database (your data)
+- KV Cache (your sessions)
+- R2 Storage (your files)
+- Telegram Bot (your bot)
+
+**This means**:
+- ✅ You own all your data
+- ✅ No central server or SaaS
+- ✅ Takes 1 hour to set up
+- ✅ Free tier covers most users
+
+For a detailed explanation of bindings, AI models, and public deployment, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ---
 
