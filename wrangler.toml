@@ -4,19 +4,23 @@ compatibility_date = "2024-01-10"
 compatibility_flags = ["nodejs_compat"]
 
 # ============================================
-# BINDINGS (Automatic - Set in Dashboard)
+# BINDINGS CONFIGURATION
 # ============================================
 # 
-# 1. Workers AI Binding
-#    - Go to Cloudflare Dashboard → Workers & Pages → cloudbrain
-#    - Click "Settings" → "Bindings"
-#    - Create binding: Name = "AI", Type = "AI"
+# REQUIRED BINDINGS (2 total):
+# 
+# 1. AI Binding (Workers AI)
+#    - Purpose: Claude API for agent responses
+#    - Setup: Cloudflare Dashboard → Workers & Pages → cloudbrain → Settings → Bindings
+#    - Create: Name = "AI", Type = "AI"
 #
-# 2. KV Namespace Binding (for context cache with auto-eviction)
-#    - Create KV namespace: wrangler kv:namespace create cloudbrain-cache
-#    - Create binding: Name = "KV", Type = "KV Namespace"
-#    - Select the cloudbrain-cache namespace
-#    - Context is auto-evicted when size limit is reached (LRU)
+# 2. KV Binding (Context Storage)
+#    - Purpose: Store conversation context (no TTL, manual cleanup at 12KB limit)
+#    - Setup: 
+#      a) Create namespace: wrangler kv:namespace create cloudbrain-context
+#      b) Dashboard → Workers & Pages → cloudbrain → Settings → Bindings
+#      c) Create: Name = "KV", Type = "KV Namespace", Select "cloudbrain-context"
+#    - Context Management: FIFO deletion when exceeding 12KB
 #
 
 [ai]

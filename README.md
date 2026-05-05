@@ -36,9 +36,9 @@ You send natural language commands via Telegram, and it:
 
 ## 🏗️ Architecture
 
-### Bindings (Automatic)
-- **`AI`** — Workers AI binding for model inference
-- **`KV`** — KV namespace for context cache (auto-evicts oldest keys on size limit)
+### Bindings (2 Total)
+- **`AI`** — Workers AI binding for Claude API inference
+- **`KV`** — KV namespace for context storage (8-12 KB per request, FIFO eviction when limit exceeded)
 
 ### Credentials (Manual - Set in Dashboard)
 1. **TELEGRAM_BOT_TOKEN** — from @BotFather
@@ -66,7 +66,7 @@ You send natural language commands via Telegram, and it:
 
 1. Copy `.env.local.example` to `.env.local`
 2. Fill in your 4 credentials
-3. Create KV namespace: `wrangler kv:namespace create cloudbrain-cache`
+3. Create KV namespace: `wrangler kv:namespace create cloudbrain-context`
 4. Update `wrangler.toml` with KV namespace IDs
 5. Deploy: `npm run deploy`
 6. Bind Workers AI and KV in Cloudflare Dashboard
@@ -112,10 +112,11 @@ CloudBrain: "📁 Your Files: (lists all R2 files)"
 ## Storage & Context Management
 
 ### KV Context Cache
-- **Purpose**: Store conversation context and session data
-- **Auto-Eviction**: Oldest keys are automatically deleted when size limit is reached (LRU)
-- **No Manual TTL**: Size-based eviction handles cleanup automatically
-- **Limit**: 1GB per namespace
+- **Purpose**: Store conversation context (no TTL, manual cleanup)
+- **Context Limit**: 8-12 KB per request maximum
+- **Eviction Strategy**: FIFO (First In, First Out) - oldest entries deleted when exceeding 12 KB
+- **Single Binding**: `KV` namespace stores all context
+- **Limit**: 1GB per namespace (plenty for context)
 
 ### D1 Database (via API)
 - **Purpose**: Persistent storage for users, messages, automations
@@ -144,8 +145,8 @@ CloudBrain: "📁 Your Files: (lists all R2 files)"
 
 | Binding | Type | Purpose |
 |---------|------|---------|
-| `AI` | Workers AI | Model inference |
-| `KV` | KV Namespace | Context cache |
+| `AI` | Workers AI | Claude API for agent responses |
+| `KV` | KV Namespace | Context storage (8-12 KB per request, FIFO eviction) |
 
 ---
 
