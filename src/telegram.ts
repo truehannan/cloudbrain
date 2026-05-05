@@ -172,7 +172,7 @@ Examples:
     { role: 'user', content: text },
   ];
 
-  const response = await env.AI.run('@cf/mistral/mistral-7b-instruct-v0.2', { messages });
+  const response = await env.AI.run('@cf/meta/llama-2-7b-chat-int8', { messages });
   const responseText = response.response || '';
 
   try {
@@ -192,7 +192,7 @@ async function generateChatResponse(text: string, env: CloudBrainEnv): Promise<s
     { role: 'user', content: text },
   ];
 
-  const response = await env.AI.run('@cf/mistral/mistral-7b-instruct-v0.2', { messages });
+  const response = await env.AI.run('@cf/meta/llama-2-7b-chat-int8', { messages });
   return response.response || 'Unable to generate response.';
 }
 

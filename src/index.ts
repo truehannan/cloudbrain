@@ -46,7 +46,7 @@ app.post('/api/test', async (c) => {
 
     // Test AI directly first
     try {
-      const aiResponse = await c.env.AI.run('@cf/mistral/mistral-7b-instruct-v0.2', {
+      const aiResponse = await c.env.AI.run('@cf/meta/llama-2-7b-chat-int8', {
         messages: [{ role: 'user', content: message }],
       });
 
