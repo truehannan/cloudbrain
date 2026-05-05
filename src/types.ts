@@ -3,7 +3,6 @@
 export interface CloudBrainEnv {
   // Bindings (automatically configured)
   AI: any; // Workers AI binding
-  KV: KVNamespace; // KV namespace for context cache (auto-evicts oldest on size limit)
   
   // Environment variables (set via Cloudflare Dashboard)
   TELEGRAM_BOT_TOKEN: string;

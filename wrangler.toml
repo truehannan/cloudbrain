@@ -26,15 +26,8 @@ compatibility_flags = ["nodejs_compat"]
 [ai]
 binding = "AI"
 
-[[kv_namespaces]]
-binding = "KV"
-id = "cloudbrain"
-preview_id = "cloudbrain"
-
-# KV Namespace: cloudbrain
-# This namespace stores conversation context with automatic FIFO eviction
-# Context limit: 8-12 KB per request (oldest messages deleted when exceeded)
-# No TTL - cleanup is size-based only
+# KV is now managed via Cloudflare API
+# The program automatically creates and manages the 'cloudbrain' namespace
 
 # ============================================
 # ENVIRONMENT VARIABLES CONFIGURATION

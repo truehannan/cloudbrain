@@ -1,6 +1,6 @@
 # CloudBrain Setup Checklist
 
-CloudBrain is an AI agent that uses Cloudflare Workers with two bindings (Workers AI and KV Cache) and accesses other services via API.
+CloudBrain is an AI agent that uses Cloudflare Workers with one binding (Workers AI) and manages KV via Cloudflare API.
 
 ## [ ] Prerequisites
 
@@ -8,63 +8,27 @@ CloudBrain is an AI agent that uses Cloudflare Workers with two bindings (Worker
 - Telegram bot (from @BotFather)
 - Your Telegram ID (from @userinfobot)
 
-## [ ] Step 1: Create KV Namespace for Context Cache
-
-```bash
-wrangler kv:namespace create cloudbrain
-```
-
-**Important:** The namespace name MUST be `cloudbrain` (hardcoded for all users).
-
-This creates the namespace that stores conversation context with automatic FIFO eviction (8-12 KB limit, no TTL).
-
-## [ ] Step 2: Update wrangler.toml with KV Namespace
-
-The `wrangler.toml` file already has the correct KV namespace configuration:
-
-```toml
-[[kv_namespaces]]
-binding = "KV"
-id = "cloudbrain"
-preview_id = "cloudbrain"
-```
-
-**No changes needed** - the namespace name `cloudbrain` is hardcoded for all users.
-
-**Note on KV Context Storage**: The KV namespace stores conversation context with automatic FIFO eviction. When context exceeds 12 KB, oldest entries are deleted first. No TTL is set - cleanup is size-based only.
-
-## [ ] Step 3: Deploy Worker
+## [ ] Step 1: Deploy Worker
 
 ```bash
 npm install
 npm run deploy
 ```
 
-## [ ] Step 4: Configure Bindings in Cloudflare Dashboard
+The worker is now deployed. KV namespace will be created automatically on first request.
+
+## [ ] Step 2: Configure AI Binding in Cloudflare Dashboard
 
 1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. Navigate to **Workers & Pages** → **cloudbrain**
-3. Click **Settings** → **Bindings**
+2. Navigate to **Workers & Pages** → **cloudbrain** → **Settings** → **Bindings**
+3. Click "Create binding"
+4. Name: `AI`
+5. Type: `AI`
+6. Click "Save"
 
-### Add Workers AI Binding:
-- Click "Create binding"
-- Name: `AI`
-- Type: `AI`
-- Click "Save"
+## [ ] Step 3: Set Environment Variables
 
-### Add KV Namespace Binding:
-- Click "Create binding"
-- Name: `KV`
-- Type: `KV Namespace`
-- Select: `cloudbrain` (the namespace you created)
-- Click "Save"
-
-**Note on KV Context Storage**: The KV namespace automatically evicts oldest keys when the size limit is reached (LRU - Least Recently Used). This provides automatic context cleanup without manual TTL management.
-
-## [ ] Step 5: Set Environment Variables
-
-1. In the same **Settings** page, go to **Variables**
-2. Add these 4 variables:
+In Cloudflare Dashboard → **Settings** → **Variables**, add these 4 variables:
 
 | Variable Name | Value | Type |
 |---|---|---|
@@ -75,7 +39,7 @@ npm run deploy
 
 **Note:** Use "Secret" for sensitive tokens (they won't be visible in logs)
 
-## [ ] Step 6: Setup Telegram Webhook
+## [ ] Step 4: Setup Telegram Webhook
 
 Get your worker URL from the deployment output, then:
 
@@ -85,18 +49,22 @@ curl -X POST https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook \
   -d '{"url":"<WORKER_URL>/webhook/telegram"}'
 ```
 
-Verify webhook:
+Replace:
+- `<TELEGRAM_BOT_TOKEN>` with your actual token
+- `<WORKER_URL>` with your worker URL (from deployment output)
 
+Verify webhook:
 ```bash
 curl https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo
 ```
 
-## [ ] Step 7: Test
+## [ ] Step 5: Test
 
 - Open Telegram
 - Send `/start` to your bot
 - Send `/help` to see commands
 - Try `/ping` to test connection
+- **First request will automatically create the `cloudbrain` KV namespace**
 
 ## ✅ Done!
 
@@ -106,9 +74,14 @@ Your CloudBrain is now running on Cloudflare! 🎉
 
 CloudBrain uses:
 - **Workers AI** (binding) - For AI model inference
-- **KV Cache** (binding) - For context caching
-- **Cloudflare API** (via credentials) - To manage workers, databases, and storage
+- **Cloudflare API** (via credentials) - To manage KV, workers, databases, and storage
 - **Telegram API** (via credentials) - For bot communication
+
+### KV Management
+
+- **Automatic:** Program creates and manages KV namespace via Cloudflare API
+- **Namespace:** `cloudbrain` (created automatically on first request)
+- **Context:** 8-12 KB limit, FIFO eviction, no TTL
 
 ### Local Development
 
@@ -123,7 +96,6 @@ For local testing with `wrangler dev`:
 ### Next Steps
 
 - Read [README.md](./README.md) for full documentation
-- Check out [CONTRIBUTING.md](./CONTRIBUTING.md) if you want to improve CloudBrain
 - Monitor logs: `wrangler tail`
 
 ---

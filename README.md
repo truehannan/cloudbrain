@@ -36,9 +36,13 @@ You send natural language commands via Telegram, and it:
 
 ## 🏗️ Architecture
 
-### Bindings (2 Total)
+### Bindings (1 Total)
 - **`AI`** — Workers AI binding for Claude API inference
-- **`KV`** — KV namespace for context storage (8-12 KB per request, FIFO eviction when limit exceeded, no TTL)
+
+### KV Management
+- **Automatic:** Program creates and manages KV namespace via Cloudflare API
+- **Namespace:** `cloudbrain` (created automatically on first request)
+- **Context:** 8-12 KB limit, FIFO eviction, no TTL
 
 ### Credentials (Manual - Set in Dashboard)
 1. **TELEGRAM_BOT_TOKEN** — from @BotFather
@@ -64,30 +68,23 @@ You send natural language commands via Telegram, and it:
 
 ### Deployment Steps
 
-1. **Create KV Namespace** (one-time setup):
-   ```bash
-   wrangler kv:namespace create cloudbrain
-   ```
-   This creates the namespace that stores conversation context with FIFO eviction (8-12 KB limit, no TTL).
-
-2. **Deploy Worker**:
+1. **Deploy Worker**:
    ```bash
    npm run deploy
    ```
 
-3. **Configure Bindings in Cloudflare Dashboard**:
+2. **Configure AI Binding in Cloudflare Dashboard**:
    - Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
    - Navigate to **Workers & Pages** → **cloudbrain** → **Settings** → **Bindings**
    - Add **Workers AI Binding**: Name = `AI`, Type = `AI`
-   - Add **KV Namespace Binding**: Name = `KV`, Type = `KV Namespace`, Select = `cloudbrain`
 
-4. **Set Environment Variables** in Cloudflare Dashboard → **Settings** → **Variables**:
+3. **Set Environment Variables** in Cloudflare Dashboard → **Settings** → **Variables**:
    - `TELEGRAM_BOT_TOKEN` (Secret)
    - `TELEGRAM_OWNER_ID` (Variable)
    - `CLOUDFLARE_ACCOUNT_ID` (Variable)
    - `CLOUDFLARE_API_TOKEN` (Secret)
 
-5. **Setup Telegram Webhook**:
+4. **Setup Telegram Webhook**:
    ```bash
    curl -X POST https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook \
      -H "Content-Type: application/json" \
@@ -95,11 +92,12 @@ You send natural language commands via Telegram, and it:
    ```
    Replace `<TELEGRAM_BOT_TOKEN>` with your token and `<WORKER_URL>` with your worker URL.
 
-6. **Test**:
+5. **Test**:
    - Open Telegram
    - Send `/start` to your bot
    - Send `/help` to see commands
    - Try `/ping` to test connection
+   - **First request will automatically create the `cloudbrain` KV namespace**
 
 👉 **[See Complete Step-by-Step Guide →](./SETUP.md)**
 
