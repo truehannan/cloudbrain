@@ -5,7 +5,8 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --env production",
+    "deploy:dev": "wrangler deploy --env development",
     "type-check": "tsc --noEmit",
     "test": "echo \"no tests yet\""
   },

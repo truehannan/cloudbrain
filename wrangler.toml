@@ -7,11 +7,11 @@ compatibility_flags = ["nodejs_compat"]
 [ai]
 binding = "AI"
 
-# Environment variables are loaded from .env file
-# Create .env file by copying .env.example and filling in your credentials
-# The .env file is in .gitignore - your credentials stay private!
-[env.production]
-vars = { TELEGRAM_BOT_TOKEN = "", TELEGRAM_OWNER_ID = "", CLOUDFLARE_API_TOKEN = "", CLOUDFLARE_ACCOUNT_ID = "" }
-
+# Development environment (uses .env file)
 [env.development]
 vars = { TELEGRAM_BOT_TOKEN = "", TELEGRAM_OWNER_ID = "", CLOUDFLARE_API_TOKEN = "", CLOUDFLARE_ACCOUNT_ID = "" }
+
+# Production environment (uses Cloudflare dashboard variables)
+# Set variables directly in Cloudflare Workers dashboard: Settings → Variables
+[env.production]
+# No vars here - they come from the dashboard
