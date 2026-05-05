@@ -28,12 +28,13 @@ binding = "AI"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "your-kv-namespace-id"
-preview_id = "your-kv-preview-id"
+id = "cloudbrain"
+preview_id = "cloudbrain"
 
-# To create the namespace, run:
-# wrangler kv:namespace create cloudbrain
-# Then replace the IDs above with the returned values
+# KV Namespace: cloudbrain
+# This namespace stores conversation context with automatic FIFO eviction
+# Context limit: 8-12 KB per request (oldest messages deleted when exceeded)
+# No TTL - cleanup is size-based only
 
 # ============================================
 # ENVIRONMENT VARIABLES CONFIGURATION

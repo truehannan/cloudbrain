@@ -14,18 +14,22 @@ CloudBrain is an AI agent that uses Cloudflare Workers with two bindings (Worker
 wrangler kv:namespace create cloudbrain
 ```
 
-Copy the `id` and `preview_id` from the output.
+**Important:** The namespace name MUST be `cloudbrain` (hardcoded for all users).
 
-## [ ] Step 2: Update wrangler.toml with KV IDs
+This creates the namespace that stores conversation context with automatic FIFO eviction (8-12 KB limit, no TTL).
 
-Edit `wrangler.toml` and add your KV namespace IDs:
+## [ ] Step 2: Update wrangler.toml with KV Namespace
+
+The `wrangler.toml` file already has the correct KV namespace configuration:
 
 ```toml
 [[kv_namespaces]]
 binding = "KV"
-id = "your-kv-namespace-id"
-preview_id = "your-kv-preview-id"
+id = "cloudbrain"
+preview_id = "cloudbrain"
 ```
+
+**No changes needed** - the namespace name `cloudbrain` is hardcoded for all users.
 
 **Note on KV Context Storage**: The KV namespace stores conversation context with automatic FIFO eviction. When context exceeds 12 KB, oldest entries are deleted first. No TTL is set - cleanup is size-based only.
 

@@ -64,14 +64,42 @@ You send natural language commands via Telegram, and it:
 
 ### Deployment Steps
 
-1. Copy `.env.local.example` to `.env.local`
-2. Fill in your 4 credentials
-3. Create KV namespace: `wrangler kv:namespace create cloudbrain-context`
-4. Update `wrangler.toml` with KV namespace IDs
-5. Deploy: `npm run deploy`
-6. Bind Workers AI and KV in Cloudflare Dashboard
-7. Set 4 credentials in Cloudflare Dashboard → Settings → Variables
-8. Setup Telegram webhook
+1. **Create KV Namespace** (one-time setup):
+   ```bash
+   wrangler kv:namespace create cloudbrain
+   ```
+   This creates the namespace that stores conversation context with FIFO eviction (8-12 KB limit, no TTL).
+
+2. **Deploy Worker**:
+   ```bash
+   npm run deploy
+   ```
+
+3. **Configure Bindings in Cloudflare Dashboard**:
+   - Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
+   - Navigate to **Workers & Pages** → **cloudbrain** → **Settings** → **Bindings**
+   - Add **Workers AI Binding**: Name = `AI`, Type = `AI`
+   - Add **KV Namespace Binding**: Name = `KV`, Type = `KV Namespace`, Select = `cloudbrain`
+
+4. **Set Environment Variables** in Cloudflare Dashboard → **Settings** → **Variables**:
+   - `TELEGRAM_BOT_TOKEN` (Secret)
+   - `TELEGRAM_OWNER_ID` (Variable)
+   - `CLOUDFLARE_ACCOUNT_ID` (Variable)
+   - `CLOUDFLARE_API_TOKEN` (Secret)
+
+5. **Setup Telegram Webhook**:
+   ```bash
+   curl -X POST https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook \
+     -H "Content-Type: application/json" \
+     -d '{"url":"<WORKER_URL>/webhook/telegram"}'
+   ```
+   Replace `<TELEGRAM_BOT_TOKEN>` with your token and `<WORKER_URL>` with your worker URL.
+
+6. **Test**:
+   - Open Telegram
+   - Send `/start` to your bot
+   - Send `/help` to see commands
+   - Try `/ping` to test connection
 
 👉 **[See Complete Step-by-Step Guide →](./SETUP.md)**
 
