@@ -44,28 +44,29 @@ app.post('/api/test', async (c) => {
       return c.json({ error: 'Unauthorized. You are not the owner.' }, 403);
     }
 
-    // Simulate Telegram update
-    const update: TelegramUpdate = {
-      update_id: 0,
-      message: {
-        message_id: 0,
-        date: Math.floor(Date.now() / 1000),
-        chat: { id: 0, type: 'private' },
-        from: { id: parseInt(userId), is_bot: false, first_name: 'Test' },
-        text: message,
-      },
-    };
+    // Test AI directly first
+    try {
+      const aiResponse = await c.env.AI.run('@cf/mistral/mistral-7b-instruct-v0.2', {
+        messages: [{ role: 'user', content: message }],
+      });
 
-    // Process through Telegram handler
-    const response = await handleTelegramWebhook(update, c.env);
-    const text = await response.text();
-
-    return c.json({
-      success: true,
-      message: 'Request processed',
-      response: text,
-      status: response.status,
-    });
+      return c.json({
+        success: true,
+        message: 'AI Response',
+        response: aiResponse.response || 'No response from AI',
+        aiStatus: 'success',
+      });
+    } catch (aiError) {
+      console.error('AI error:', aiError);
+      return c.json(
+        {
+          success: false,
+          error: 'AI call failed',
+          message: aiError instanceof Error ? aiError.message : String(aiError),
+        },
+        500
+      );
+    }
   } catch (error) {
     console.error('Test API error:', error);
     return c.json(
