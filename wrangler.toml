@@ -7,9 +7,34 @@ compatibility_flags = ["nodejs_compat"]
 [ai]
 binding = "AI"
 
-# Development environment (uses .env file)
+# ============================================
+# ENVIRONMENT VARIABLES CONFIGURATION
+# ============================================
+# 
+# IMPORTANT: The 4 required credentials should be set in Cloudflare Workers Dashboard:
+# 1. TELEGRAM_BOT_TOKEN - Get from @BotFather on Telegram
+# 2. TELEGRAM_OWNER_ID - Get from @userinfobot on Telegram
+# 3. CLOUDFLARE_ACCOUNT_ID - Find in Cloudflare Dashboard
+# 4. CLOUDFLARE_API_TOKEN - Create in Dashboard → Settings → API Tokens
+#
+# To set them:
+# 1. Go to Cloudflare Dashboard → Workers & Pages → cloudbrain
+# 2. Click "Settings" → "Variables"
+# 3. Add each variable with its value
+# 4. For sensitive tokens, use "Secrets" instead of "Variables"
+#
+# DO NOT commit credentials to this file or .env files!
+# ============================================
+
+# Development environment (for local testing with wrangler dev)
+# Create a .env.local file in the project root with your credentials
 [env.development]
-vars = { TELEGRAM_BOT_TOKEN = "", TELEGRAM_OWNER_ID = "", CLOUDFLARE_API_TOKEN = "", CLOUDFLARE_ACCOUNT_ID = "" }
+# Variables for development - use .env.local file
+# Example .env.local:
+# TELEGRAM_BOT_TOKEN=your_token_here
+# TELEGRAM_OWNER_ID=your_id_here
+# CLOUDFLARE_ACCOUNT_ID=your_account_id
+# CLOUDFLARE_API_TOKEN=your_api_token
 
 # Production environment (uses Cloudflare dashboard variables)
 # Set variables directly in Cloudflare Workers dashboard: Settings → Variables

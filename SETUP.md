@@ -36,25 +36,59 @@ Complete these steps in order to deploy CloudBrain:
 - [ ] Get your Telegram ID via [@userinfobot](https://t.me/userinfobot)
   Copy: `TELEGRAM_OWNER_ID`
 
-## [ ] Configure CloudBrain
+## [ ] Configure CloudBrain - IMPORTANT: Use Cloudflare Dashboard (NOT wrangler.toml)
 
-- [ ] Edit `wrangler.toml`:
-  ```toml
-  [[d1_databases]]
-  database_id = "DATABASE_ID"  # ← Paste here
+**SECURITY WARNING:** Never commit credentials to wrangler.toml or .env files!
 
-  [[kv_namespaces]]
-  id = "KV_ID"  # ← Paste here
-  preview_id = "KV_PREVIEW_ID"  # ← Paste here
+### Step 1: Update wrangler.toml with Resource IDs (Safe)
 
-  [env.production]
-  vars = {
-    TELEGRAM_BOT_TOKEN = "TELEGRAM_BOT_TOKEN",  # ← Paste here
-    TELEGRAM_OWNER_ID = "TELEGRAM_OWNER_ID",  # ← Paste here
-    CLOUDFLARE_API_TOKEN = "API_TOKEN",  # ← Paste here
-    CLOUDFLARE_ACCOUNT_ID = "ACCOUNT_ID"  # ← Paste here
-  }
-  ```
+Edit `wrangler.toml` and add your resource IDs:
+```toml
+[[d1_databases]]
+database_id = "DATABASE_ID"  # ← Paste your D1 database ID
+
+[[kv_namespaces]]
+id = "KV_ID"  # ← Paste your KV namespace ID
+preview_id = "KV_PREVIEW_ID"  # ← Paste your KV preview ID
+
+[[r2_buckets]]
+bucket_name = "cloudbrain-files"
+```
+
+### Step 2: Set Credentials in Cloudflare Dashboard (Secure)
+
+1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
+2. Navigate to **Workers & Pages** → **cloudbrain**
+3. Click **Settings** → **Variables**
+4. Add these 4 variables:
+
+| Variable Name | Value | Type |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | Your bot token from @BotFather | Secret |
+| `TELEGRAM_OWNER_ID` | Your Telegram ID from @userinfobot | Variable |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare Account ID | Variable |
+| `CLOUDFLARE_API_TOKEN` | Your Cloudflare API Token | Secret |
+
+**Note:** Use "Secret" for sensitive tokens (they won't be visible in logs)
+
+### Step 3: Local Development (Optional)
+
+For local testing with `wrangler dev`:
+
+1. Copy `.env.local.example` to `.env.local`
+   ```bash
+   cp .env.local.example .env.local
+   ```
+
+2. Edit `.env.local` and add your credentials:
+   ```
+   TELEGRAM_BOT_TOKEN=your_token_here
+   TELEGRAM_OWNER_ID=your_id_here
+   CLOUDFLARE_ACCOUNT_ID=your_account_id
+   CLOUDFLARE_API_TOKEN=your_api_token
+   ```
+
+3. **IMPORTANT:** `.env.local` is in `.gitignore` - never commit it!
 
 ## [ ] Install & Deploy
 
