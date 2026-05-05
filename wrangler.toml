@@ -15,12 +15,12 @@ compatibility_flags = ["nodejs_compat"]
 #    - Create: Name = "AI", Type = "AI"
 #
 # 2. KV Binding (Context Storage)
-#    - Purpose: Store conversation context (no TTL, manual cleanup at 12KB limit)
+#    - Purpose: Store conversation context (no TTL, FIFO eviction at 12KB limit)
 #    - Setup: 
-#      a) Create namespace: wrangler kv:namespace create cloudbrain-context
+#      a) Create namespace: wrangler kv:namespace create cloudbrain
 #      b) Dashboard → Workers & Pages → cloudbrain → Settings → Bindings
-#      c) Create: Name = "KV", Type = "KV Namespace", Select "cloudbrain-context"
-#    - Context Management: FIFO deletion when exceeding 12KB
+#      c) Create: Name = "KV", Type = "KV Namespace", Select "cloudbrain"
+#    - Context Management: FIFO deletion when exceeding 12KB (oldest messages removed first)
 #
 
 [ai]
@@ -30,6 +30,10 @@ binding = "AI"
 binding = "KV"
 id = "your-kv-namespace-id"
 preview_id = "your-kv-preview-id"
+
+# To create the namespace, run:
+# wrangler kv:namespace create cloudbrain
+# Then replace the IDs above with the returned values
 
 # ============================================
 # ENVIRONMENT VARIABLES CONFIGURATION

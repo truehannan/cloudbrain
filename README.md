@@ -38,7 +38,7 @@ You send natural language commands via Telegram, and it:
 
 ### Bindings (2 Total)
 - **`AI`** — Workers AI binding for Claude API inference
-- **`KV`** — KV namespace for context storage (8-12 KB per request, FIFO eviction when limit exceeded)
+- **`KV`** — KV namespace for context storage (8-12 KB per request, FIFO eviction when limit exceeded, no TTL)
 
 ### Credentials (Manual - Set in Dashboard)
 1. **TELEGRAM_BOT_TOKEN** — from @BotFather
@@ -117,6 +117,7 @@ CloudBrain: "📁 Your Files: (lists all R2 files)"
 - **Eviction Strategy**: FIFO (First In, First Out) - oldest entries deleted when exceeding 12 KB
 - **Single Binding**: `KV` namespace stores all context
 - **Limit**: 1GB per namespace (plenty for context)
+- **Implementation**: When context size exceeds 12 KB, oldest messages are automatically removed from the context array before storage
 
 ### D1 Database (via API)
 - **Purpose**: Persistent storage for users, messages, automations

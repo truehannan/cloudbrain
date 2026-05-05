@@ -11,7 +11,7 @@ CloudBrain is an AI agent that uses Cloudflare Workers with two bindings (Worker
 ## [ ] Step 1: Create KV Namespace for Context Cache
 
 ```bash
-wrangler kv:namespace create cloudbrain-cache
+wrangler kv:namespace create cloudbrain
 ```
 
 Copy the `id` and `preview_id` from the output.
@@ -22,10 +22,12 @@ Edit `wrangler.toml` and add your KV namespace IDs:
 
 ```toml
 [[kv_namespaces]]
-binding = "CACHE"
+binding = "KV"
 id = "your-kv-namespace-id"
 preview_id = "your-kv-preview-id"
 ```
+
+**Note on KV Context Storage**: The KV namespace stores conversation context with automatic FIFO eviction. When context exceeds 12 KB, oldest entries are deleted first. No TTL is set - cleanup is size-based only.
 
 ## [ ] Step 3: Deploy Worker
 
@@ -50,7 +52,7 @@ npm run deploy
 - Click "Create binding"
 - Name: `KV`
 - Type: `KV Namespace`
-- Select: `cloudbrain-cache` (the namespace you created)
+- Select: `cloudbrain` (the namespace you created)
 - Click "Save"
 
 **Note on KV Context Storage**: The KV namespace automatically evicts oldest keys when the size limit is reached (LRU - Least Recently Used). This provides automatic context cleanup without manual TTL management.
