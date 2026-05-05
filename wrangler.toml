@@ -7,27 +7,21 @@ compatibility_flags = ["nodejs_compat"]
 # BINDINGS CONFIGURATION
 # ============================================
 # 
-# REQUIRED BINDINGS (2 total):
+# REQUIRED BINDINGS (1 total):
 # 
 # 1. AI Binding (Workers AI)
 #    - Purpose: Claude API for agent responses
 #    - Setup: Cloudflare Dashboard → Workers & Pages → cloudbrain → Settings → Bindings
 #    - Create: Name = "AI", Type = "AI"
 #
-# 2. KV Binding (Context Storage)
-#    - Purpose: Store conversation context (no TTL, FIFO eviction at 12KB limit)
-#    - Setup: 
-#      a) Create namespace: wrangler kv:namespace create cloudbrain
-#      b) Dashboard → Workers & Pages → cloudbrain → Settings → Bindings
-#      c) Create: Name = "KV", Type = "KV Namespace", Select "cloudbrain"
-#    - Context Management: FIFO deletion when exceeding 12KB (oldest messages removed first)
+# KV Storage is now managed via Cloudflare API
+# - The program automatically creates and manages the 'cloudbrain' namespace
+# - No manual binding setup required
+# - Requires: CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN environment variables
 #
 
 [ai]
 binding = "AI"
-
-# KV is now managed via Cloudflare API
-# The program automatically creates and manages the 'cloudbrain' namespace
 
 # ============================================
 # ENVIRONMENT VARIABLES CONFIGURATION

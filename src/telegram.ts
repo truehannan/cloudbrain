@@ -2,9 +2,18 @@ import { TelegramUpdate, TelegramMessage, CloudBrainEnv } from './types';
 import { listAutomationsForTelegramId, listDatabaseTables, listFilesForTelegramId, queryDatabase, storeMessage, upsertUser } from './db';
 import { formatModelsForDisplay } from './models';
 import { executeAction } from './actions';
+import { getOrCreateKVNamespace } from './kv';
+
+// Global cache for KV namespace ID (per worker instance)
+let kvNamespaceId: string | null = null;
 
 export async function handleTelegramWebhook(update: TelegramUpdate, env: CloudBrainEnv): Promise<Response> {
   try {
+    // Initialize KV namespace on first request
+    if (!kvNamespaceId) {
+      kvNamespaceId = await getOrCreateKVNamespace(env);
+    }
+
     if (!update.message) {
       return new Response('No message', { status: 200 });
     }
