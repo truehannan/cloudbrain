@@ -17,8 +17,17 @@ app.post('/webhook/telegram', async (c) => {
 });
 
 // Test API - for debugging without Telegram
+// Requires: accountId header matching CLOUDFLARE_ACCOUNT_ID env var
 app.post('/api/test', async (c) => {
   try {
+    // Verify credentials using CLOUDFLARE_ACCOUNT_ID
+    const providedAccountId = c.req.header('X-Account-ID');
+    const expectedAccountId = c.env.CLOUDFLARE_ACCOUNT_ID;
+
+    if (!providedAccountId || providedAccountId !== expectedAccountId) {
+      return c.json({ error: 'Unauthorized. Invalid or missing X-Account-ID header.' }, 403);
+    }
+
     const body = await c.req.json();
     const { message, userId } = body;
 
