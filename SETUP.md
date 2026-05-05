@@ -48,10 +48,12 @@ npm run deploy
 
 ### Add KV Namespace Binding:
 - Click "Create binding"
-- Name: `CACHE`
+- Name: `KV`
 - Type: `KV Namespace`
 - Select: `cloudbrain-cache` (the namespace you created)
 - Click "Save"
+
+**Note on KV Context Storage**: The KV namespace automatically evicts oldest keys when the size limit is reached (LRU - Least Recently Used). This provides automatic context cleanup without manual TTL management.
 
 ## [ ] Step 5: Set Environment Variables
 

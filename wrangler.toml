@@ -12,17 +12,18 @@ compatibility_flags = ["nodejs_compat"]
 #    - Click "Settings" → "Bindings"
 #    - Create binding: Name = "AI", Type = "AI"
 #
-# 2. KV Namespace Binding (for context cache)
+# 2. KV Namespace Binding (for context cache with auto-eviction)
 #    - Create KV namespace: wrangler kv:namespace create cloudbrain-cache
-#    - Create binding: Name = "CACHE", Type = "KV Namespace"
+#    - Create binding: Name = "KV", Type = "KV Namespace"
 #    - Select the cloudbrain-cache namespace
+#    - Context is auto-evicted when size limit is reached (LRU)
 #
 
 [ai]
 binding = "AI"
 
 [[kv_namespaces]]
-binding = "CACHE"
+binding = "KV"
 id = "your-kv-namespace-id"
 preview_id = "your-kv-preview-id"
 
