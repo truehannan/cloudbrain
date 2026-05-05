@@ -1,7 +1,11 @@
 // Type definitions for CloudBrain
 
 export interface CloudBrainEnv {
-  AI: any;
+  // Bindings (automatically configured)
+  AI: any; // Workers AI binding
+  CACHE: KVNamespace; // KV namespace for context cache
+  
+  // Environment variables (set via Cloudflare Dashboard)
   TELEGRAM_BOT_TOKEN: string;
   TELEGRAM_OWNER_ID: string;
   CLOUDFLARE_API_TOKEN: string;

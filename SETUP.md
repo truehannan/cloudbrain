@@ -1,66 +1,62 @@
 # CloudBrain Setup Checklist
 
-Complete these steps in order to deploy CloudBrain:
+CloudBrain is an AI agent that uses Cloudflare Workers with two bindings (Workers AI and KV Cache) and accesses other services via API.
 
-## [ ] Cloudflare Resources
+## [ ] Prerequisites
 
-- [ ] Create D1 database
-  ```bash
-  wrangler d1 create cloudbrain
-  ```
-  Copy: `DATABASE_ID`
+- Cloudflare account with Workers enabled
+- Telegram bot (from @BotFather)
+- Your Telegram ID (from @userinfobot)
 
-- [ ] Create KV namespace
-  ```bash
-  wrangler kv:namespace create cloudbrain
-  ```
-  Copy: `KV_ID`, `KV_PREVIEW_ID`
+## [ ] Step 1: Create KV Namespace for Context Cache
 
-- [ ] Create R2 bucket
-  ```bash
-  wrangler r2 bucket create cloudbrain-files
-  ```
-
-- [ ] Get Account ID from Cloudflare Dashboard
-  Copy: `ACCOUNT_ID`
-
-- [ ] Create API Token in Cloudflare Dashboard
-  Copy: `API_TOKEN`
-
-## [ ] Telegram Setup
-
-- [ ] Chat with [@BotFather](https://t.me/BotFather)
-- [ ] Create new bot
-  Copy: `TELEGRAM_BOT_TOKEN`
-
-- [ ] Get your Telegram ID via [@userinfobot](https://t.me/userinfobot)
-  Copy: `TELEGRAM_OWNER_ID`
-
-## [ ] Configure CloudBrain - IMPORTANT: Use Cloudflare Dashboard (NOT wrangler.toml)
-
-**SECURITY WARNING:** Never commit credentials to wrangler.toml or .env files!
-
-### Step 1: Update wrangler.toml with Resource IDs (Safe)
-
-Edit `wrangler.toml` and add your resource IDs:
-```toml
-[[d1_databases]]
-database_id = "DATABASE_ID"  # ← Paste your D1 database ID
-
-[[kv_namespaces]]
-id = "KV_ID"  # ← Paste your KV namespace ID
-preview_id = "KV_PREVIEW_ID"  # ← Paste your KV preview ID
-
-[[r2_buckets]]
-bucket_name = "cloudbrain-files"
+```bash
+wrangler kv:namespace create cloudbrain-cache
 ```
 
-### Step 2: Set Credentials in Cloudflare Dashboard (Secure)
+Copy the `id` and `preview_id` from the output.
+
+## [ ] Step 2: Update wrangler.toml with KV IDs
+
+Edit `wrangler.toml` and add your KV namespace IDs:
+
+```toml
+[[kv_namespaces]]
+binding = "CACHE"
+id = "your-kv-namespace-id"
+preview_id = "your-kv-preview-id"
+```
+
+## [ ] Step 3: Deploy Worker
+
+```bash
+npm install
+npm run deploy
+```
+
+## [ ] Step 4: Configure Bindings in Cloudflare Dashboard
 
 1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
 2. Navigate to **Workers & Pages** → **cloudbrain**
-3. Click **Settings** → **Variables**
-4. Add these 4 variables:
+3. Click **Settings** → **Bindings**
+
+### Add Workers AI Binding:
+- Click "Create binding"
+- Name: `AI`
+- Type: `AI`
+- Click "Save"
+
+### Add KV Namespace Binding:
+- Click "Create binding"
+- Name: `CACHE`
+- Type: `KV Namespace`
+- Select: `cloudbrain-cache` (the namespace you created)
+- Click "Save"
+
+## [ ] Step 5: Set Environment Variables
+
+1. In the same **Settings** page, go to **Variables**
+2. Add these 4 variables:
 
 | Variable Name | Value | Type |
 |---|---|---|
@@ -71,65 +67,50 @@ bucket_name = "cloudbrain-files"
 
 **Note:** Use "Secret" for sensitive tokens (they won't be visible in logs)
 
-### Step 3: Local Development (Optional)
+## [ ] Step 6: Setup Telegram Webhook
 
-For local testing with `wrangler dev`:
+Get your worker URL from the deployment output, then:
 
-1. Copy `.env.local.example` to `.env.local`
-   ```bash
-   cp .env.local.example .env.local
-   ```
+```bash
+curl -X POST https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook \
+  -H "Content-Type: application/json" \
+  -d '{"url":"<WORKER_URL>/webhook/telegram"}'
+```
 
-2. Edit `.env.local` and add your credentials:
-   ```
-   TELEGRAM_BOT_TOKEN=your_token_here
-   TELEGRAM_OWNER_ID=your_id_here
-   CLOUDFLARE_ACCOUNT_ID=your_account_id
-   CLOUDFLARE_API_TOKEN=your_api_token
-   ```
+Verify webhook:
 
-3. **IMPORTANT:** `.env.local` is in `.gitignore` - never commit it!
+```bash
+curl https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo
+```
 
-## [ ] Install & Deploy
+## [ ] Step 7: Test
 
-- [ ] Install dependencies
-  ```bash
-  npm install
-  ```
-
-- [ ] Initialize database
-  ```bash
-  wrangler d1 execute cloudbrain --file=schema.sql --remote
-  ```
-
-- [ ] Deploy worker
-  ```bash
-  npm run deploy
-  ```
-  Copy worker URL from output
-
-- [ ] Setup Telegram webhook
-  ```bash
-  curl -X POST https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook \
-    -H "Content-Type: application/json" \
-    -d '{"url":"<WORKER_URL>/webhook/telegram"}'
-  ```
-
-- [ ] Verify webhook
-  ```bash
-  curl https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo
-  ```
-
-## [ ] Test
-
-- [ ] Open Telegram
-- [ ] Send `/start` to your bot
-- [ ] Send `/help` to see commands
-- [ ] Try a simple command like `/ping`
+- Open Telegram
+- Send `/start` to your bot
+- Send `/help` to see commands
+- Try `/ping` to test connection
 
 ## ✅ Done!
 
 Your CloudBrain is now running on Cloudflare! 🎉
+
+### Architecture
+
+CloudBrain uses:
+- **Workers AI** (binding) - For AI model inference
+- **KV Cache** (binding) - For context caching
+- **Cloudflare API** (via credentials) - To manage workers, databases, and storage
+- **Telegram API** (via credentials) - For bot communication
+
+### Local Development
+
+For local testing with `wrangler dev`:
+
+1. Copy `.env.local.example` to `.env.local`
+2. Fill in your 4 credentials
+3. Run `npm run dev`
+
+**Important:** `.env.local` is in `.gitignore` - never commit it!
 
 ### Next Steps
 
