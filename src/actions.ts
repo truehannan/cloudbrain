@@ -1,5 +1,45 @@
 import { CloudBrainEnv, ActionResult } from './types';
 import { listAutomationsForTelegramId, queryDatabase as runQueryDatabase } from './db';
+import { AI_MODELS } from './models';
+
+// Detect user intent from natural language
+export function detectIntent(text: string): 'text' | 'image' | 'audio' | 'transcribe' {
+  const lower = text.toLowerCase();
+
+  // Image generation keywords
+  if (lower.match(/generate|create|draw|paint|make|design|image|picture|photo|visual|illustration|render/)) {
+    return 'image';
+  }
+
+  // Audio/transcription keywords
+  if (lower.match(/transcribe|audio|voice|speech|record|listen|song|music|sound/)) {
+    return 'transcribe';
+  }
+
+  // Default to text
+  return 'text';
+}
+
+// Optimize prompt for image generation
+function optimizeImagePrompt(prompt: string): string {
+  // Remove generation verbs and enhance for Stable Diffusion
+  const cleaned = prompt
+    .replace(/^(generate|create|draw|paint|make|design|create an?)\s+/i, '')
+    .trim();
+
+  // Add quality keywords if not already present
+  if (!cleaned.match(/quality|detailed|high|8k|4k|hd|resolution/i)) {
+    return `${cleaned}, detailed, high quality, professional`;
+  }
+
+  return cleaned;
+}
+
+// Optimize prompt for text generation
+function optimizeTextPrompt(prompt: string): string {
+  // Mistral works well with direct prompts
+  return prompt.trim();
+}
 
 export async function executeAction(actionType: string, params: any, env: CloudBrainEnv): Promise<ActionResult> {
   switch (actionType) {
@@ -9,12 +49,44 @@ export async function executeAction(actionType: string, params: any, env: CloudB
       return generateImage(params, env);
     case 'transcribe_audio':
       return transcribeAudio(params, env);
+    case 'smart_generate':
+      return smartGenerate(params, env);
     case 'query_database':
       return queryDatabase(params, env);
     case 'list_automations':
       return listAutomations(params, env);
     default:
       return { success: false, message: `Unknown action: ${actionType}` };
+  }
+}
+
+// Smart generation - detects intent and routes to appropriate model
+async function smartGenerate(params: any, env: CloudBrainEnv): Promise<ActionResult> {
+  try {
+    const { prompt } = params;
+
+    if (!prompt) {
+      return { success: false, message: 'Prompt required' };
+    }
+
+    const intent = detectIntent(prompt);
+
+    switch (intent) {
+      case 'image':
+        return generateImage({ prompt: optimizeImagePrompt(prompt) }, env);
+      case 'transcribe':
+        // If user asks about transcription, explain it
+        return generateText({ prompt: `The user wants to: ${prompt}. I'm ready to transcribe audio when provided.` }, env);
+      case 'text':
+      default:
+        return generateText({ prompt: optimizeTextPrompt(prompt) }, env);
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Generation failed',
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 

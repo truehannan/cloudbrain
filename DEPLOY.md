@@ -157,49 +157,63 @@ A secure API token that allows CloudBrain to create and manage Cloudflare servic
 
 ### How to Get It
 
-1. **Go to API Tokens page**
-   - https://dash.cloudflare.com/profile/api-tokens
-   - Or: Click your **profile icon** (top right) → **My Profile** → **API Tokens**
+**Step 1: Navigate to API Tokens**
 
-2. **Click "Create Token"** (blue button)
+Go to: **https://dash.cloudflare.com/profile/api-tokens**
 
-3. **Select Custom Token**
-   - You'll see templates like "Edit Cloudflare Workers", "Edit Supabase", etc.
-   - Scroll down and click **"Custom token"** (not a template)
+Or manually:
+1. Click your **profile icon** (top right corner)
+2. Click **Settings**
+3. Look for **API Tokens** in left sidebar
+4. Click **API Tokens**
 
-4. **Set Token Name**
-   - Enter: `CloudBrain` or `CloudBrain API Token`
-   - (This is just for your reference)
+**Step 2: Create a Custom Token**
 
-5. **Add Permissions** — You need these 5 permissions:
+1. Click **"Create Token"** button (blue)
+2. You'll see pre-made templates — ignore them
+3. Scroll to the bottom and click **"Create Custom Token"**
 
-   Click "Add more" to add each one:
-   - ✅ **Account** › **Workers Scripts** › **Edit**
-   - ✅ **Account** › **Workers Scripts** › **Delete**
-   - ✅ **Account** › **D1** › **Edit**
-   - ✅ **Account** › **KV** › **Write**
-   - ✅ **Account** › **R2** › **Write**
+**Step 3: Set Token Details**
 
-   (You may also see "Read" options — those are fine to include for monitoring)
+| Field | Value |
+|-------|-------|
+| Token Name | `CloudBrain` |
+| TTL | Leave default (no expiration) or set 90 days |
 
-6. **Set Account Resources**
-   - Under "Account Resources", select:
-     - ✅ **"Include All accounts"** (or select your specific account if you have multiple)
+**Step 4: Add Required Permissions**
 
-7. **Set TTL (Optional)**
-   - Default is fine (no expiration)
-   - Or set an expiration date for security (e.g., 90 days)
+Click **"Add More"** to add these exact permissions for each service:
 
-8. **Click "Create Token"** (blue button at bottom)
+**For Workers (Code Execution):**
+- ✅ **Account** → **Workers Scripts** → **Edit**
+- ✅ **Account** → **Workers Scripts** → **Delete**
 
-9. **⚠️ Copy Your Token Immediately**
-   - You'll see your token:
-     ```
-     v1.0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p
-     ```
-   - **You will NOT be able to see this again!**
-   - Copy it now to a secure location
-   - If you lose it, delete and create a new one
+**For D1 (Database):**
+- ✅ **Account** → **D1** → **Edit**
+
+**For KV (Sessions):**
+- ✅ **Account** → **KV** → **Write**
+
+**For R2 (Storage):**
+- ✅ **Account** → **R2** → **Write**
+
+**Total: 5 Permissions needed**
+
+**Step 5: Set Account Resources**
+
+Under **"Account Resources"**, select:
+- ✅ **"Include All accounts"** (or your specific account if you have multiple)
+
+**Step 6: Create and Copy Token**
+
+1. Click **"Create Token"** (blue button at bottom)
+2. ⚠️ **IMPORTANT: Copy your token IMMEDIATELY**
+   ```
+   v1.0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p
+   ```
+3. You will **NOT** see this token again
+4. Save it securely
+5. If you lose it: Delete it and create a new one
 
 ### 💾 Save This
 ```
@@ -376,19 +390,27 @@ If you get "credentials not found" errors:
 
 1. **Test Telegram bot**
    - Open Telegram and search for your bot (e.g., `my_cloudbrain_bot`)
-   - Send: `/start`
-   - Bot should respond with a welcome message
+   - Send: `/help`
+   - Bot should respond with available commands
 
-2. **Test AI**
+2. **Test Natural Language**
    - Send: `What is 2+2?`
    - CloudBrain should respond with the correct answer
 
-3. **Check Cloudflare Dashboard**
+3. **Test Image Generation**
+   - Send: `Create a cat`
+   - CloudBrain should generate an image
+
+4. **View Available Models**
+   - Send: `/models`
+   - Bot shows all available AI models
+
+5. **Check Cloudflare Dashboard**
    - Go to https://dash.cloudflare.com/
    - Check **Workers** → Your worker name should be listed
    - Check **D1** → New database `cloudbrain` should be created
-   - Check **KV** → New namespace `cloudbrain` should be created
-   - Check **R2** → New bucket `cloudbrain-storage` should be created
+   - Check **KV** → New namespace `cloudbrain-runtime` should be created
+   - Check **R2** → New bucket `cloudbrain-files` should be created
 
 ---
 

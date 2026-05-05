@@ -1,5 +1,7 @@
 import { TelegramUpdate, TelegramMessage, CloudBrainEnv } from './types';
 import { listAutomationsForTelegramId, listDatabaseTables, listFilesForTelegramId, queryDatabase, storeMessage, upsertUser } from './db';
+import { formatModelsForDisplay } from './models';
+import { executeAction } from './actions';
 
 export async function handleTelegramWebhook(update: TelegramUpdate, env: CloudBrainEnv): Promise<Response> {
   try {
@@ -42,16 +44,11 @@ async function handleCommand(text: string, chatId: number, userId: number, env: 
   const command = text.split(' ')[0].toLowerCase();
 
   switch (command) {
-    case '/start':
-      await sendMessage(chatId, '👋 Welcome to CloudBrain! I\'m your AI agent running on Cloudflare.\nType anything to chat or use /help for commands.', env);
-      break;
-
     case '/help':
       const helpText = `🤖 *CloudBrain Commands*
 
-/start — Welcome message
 /help — This message
-/ask <query> — Ask natural language query
+/models — View available AI models
 /storage — List files in R2
 /database — Query stored data
 /automations — List automations
@@ -62,6 +59,11 @@ async function handleCommand(text: string, chatId: number, userId: number, env: 
 
 *Or just chat naturally!*`;
       await sendMessage(chatId, helpText, env);
+      break;
+
+    case '/models':
+      const modelsText = formatModelsForDisplay();
+      await sendMessage(chatId, modelsText, env);
       break;
 
     case '/storage':
@@ -104,7 +106,14 @@ async function processNaturalLanguage(text: string, userId: number, env: CloudBr
 
     // Execute appropriate action
     let result = '';
-    if (intent.action === 'query_database') {
+    if (intent.action === 'smart_generate') {
+      const actionResult = await executeAction('smart_generate', intent.parameters, env);
+      if (actionResult.success) {
+        result = actionResult.data?.text || actionResult.data?.image || 'Generation complete';
+      } else {
+        result = `❌ ${actionResult.message}`;
+      }
+    } else if (intent.action === 'query_database') {
       result = await handleDatabaseQuery(intent.parameters, userId, env);
     } else if (intent.action === 'store_file') {
       result = 'File storage requires upload. Use Telegram to send files.';
@@ -134,14 +143,22 @@ async function parseIntent(text: string, env: CloudBrainEnv): Promise<{ action: 
       role: 'system',
       content: `You are an intent parser. Parse the user's intent and respond with JSON:
 {
-  "action": "query_database" | "store_file" | "create_automation" | "list_items" | "chat",
-  "parameters": { ... relevant fields ... }
+  "action": "smart_generate" | "query_database" | "store_file" | "create_automation" | "list_items" | "chat",
+  "parameters": { "prompt": "..." }
 }
 
+Guidelines:
+- For generation requests (text, images, questions), use "smart_generate"
+- For database queries, use "query_database"
+- For automation requests, use "create_automation"
+- For listing requests, use "list_items"
+- For casual chat, use "chat"
+
 Examples:
-- "Show me all automations" → {"action": "list_items", "parameters": {"type": "automations"}}
-- "Create a price tracker that checks every hour" → {"action": "create_automation", "parameters": {"description": "...", "trigger": "cron", "interval": "3600"}}
-- "How are you?" → {"action": "chat", "parameters": {}}`,
+- "Create a cat image" → {"action": "smart_generate", "parameters": {"prompt": "Create a cat image"}}
+- "What is 2+2?" → {"action": "smart_generate", "parameters": {"prompt": "What is 2+2?"}}
+- "Show all users" → {"action": "query_database", "parameters": {"query": "SELECT * FROM users"}}
+- "Create an automation that checks prices every hour" → {"action": "create_automation", "parameters": {"description": "Price checker", "interval": "3600"}}`,
     },
     { role: 'user', content: text },
   ];
