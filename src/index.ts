@@ -30,16 +30,23 @@ app.post('/webhook/telegram', async (c) => {
     
     // Validate secret token from Telegram header
     const telegramSecret = c.req.header('X-Telegram-Bot-Api-Secret-Token');
-    if (telegramSecret !== secretToken) {
-      console.warn('Invalid secret token received');
-      return c.json({ error: 'Unauthorized' }, 403);
+    if (!telegramSecret || telegramSecret !== secretToken) {
+      console.warn('Invalid or missing secret token');
+      return new Response('Unauthorized', { status: 403 });
     }
     
     const update: TelegramUpdate = await c.req.json();
-    return handleTelegramWebhook(update, c.env, secretToken);
+    
+    // Return 200 immediately - Telegram requires response within 30 seconds
+    const response = new Response('OK', { status: 200 });
+    
+    // Process update asynchronously without blocking response
+    c.executionCtx.waitUntil(handleTelegramWebhook(update, c.env, secretToken));
+    
+    return response;
   } catch (error) {
     console.error('Webhook error:', error);
-    return c.json({ error: 'Internal Server Error' }, 500);
+    return new Response('OK', { status: 200 }); // Always return 200 to Telegram
   }
 });
 
