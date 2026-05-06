@@ -2,8 +2,20 @@ import { Hono } from 'hono';
 import { CloudBrainEnv, TelegramUpdate } from './types';
 import { handleTelegramWebhook } from './telegram';
 import { queryDatabase } from './db';
+import { ensureWebhookSetup, getWebhookStatus } from './webhook-setup';
 
 const app = new Hono<{ Bindings: CloudBrainEnv }>();
+
+// Middleware to auto-setup webhook on first request
+app.use('*', async (c, next) => {
+  // Get the worker URL from the request
+  const workerUrl = new URL(c.req.url).origin;
+  
+  // Ensure webhook is setup (only runs once per worker instance)
+  await ensureWebhookSetup(c.env, workerUrl);
+  
+  await next();
+});
 
 // Health check
 app.get('/', (c) => {
@@ -100,6 +112,12 @@ app.get('/api/config', (c) => {
     },
     message: 'All 4 environment variables must be present',
   });
+});
+
+// Webhook status endpoint
+app.get('/api/webhook-status', async (c) => {
+  const status = await getWebhookStatus(c.env);
+  return c.json(status);
 });
 
 app.get('/api/automations', async (c) => {
