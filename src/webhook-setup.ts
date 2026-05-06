@@ -44,15 +44,23 @@ export async function getWebhookInfo(env: CloudBrainEnv): Promise<WebhookInfo | 
  */
 export async function registerWebhook(
   env: CloudBrainEnv,
-  webhookUrl: string
+  webhookUrl: string,
+  secretToken?: string
 ): Promise<boolean> {
   try {
+    const payload: any = { url: webhookUrl };
+    
+    // Add secret token for security (recommended by Telegram)
+    if (secretToken) {
+      payload.secret_token = secretToken;
+    }
+    
     const response = await fetch(
       `${TELEGRAM_API_BASE}/bot${env.TELEGRAM_BOT_TOKEN}/setWebhook`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: webhookUrl }),
+        body: JSON.stringify(payload),
       }
     );
 
@@ -101,6 +109,10 @@ export async function ensureWebhookSetup(env: CloudBrainEnv, workerUrl: string):
 
   try {
     const webhookUrl = `${workerUrl}/webhook/telegram`;
+    
+    // Generate a secret token for webhook security
+    // This should ideally be stored in env, but we'll generate one based on bot token
+    const secretToken = env.TELEGRAM_BOT_TOKEN.split(':')[0]; // Use bot ID as secret
 
     // Check if webhook is already configured
     const isConfigured = await isWebhookConfigured(env, webhookUrl);
@@ -110,9 +122,9 @@ export async function ensureWebhookSetup(env: CloudBrainEnv, workerUrl: string):
       return;
     }
 
-    // Register webhook
+    // Register webhook with secret token
     console.log('🔧 Setting up Telegram webhook...');
-    const success = await registerWebhook(env, webhookUrl);
+    const success = await registerWebhook(env, webhookUrl, secretToken);
 
     if (success) {
       console.log('✅ Telegram webhook setup complete');

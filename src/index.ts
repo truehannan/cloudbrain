@@ -24,8 +24,23 @@ app.get('/', (c) => {
 
 // Telegram webhook
 app.post('/webhook/telegram', async (c) => {
-  const update: TelegramUpdate = await c.req.json();
-  return handleTelegramWebhook(update, c.env);
+  try {
+    // Get secret token from environment (derived from bot token)
+    const secretToken = c.env.TELEGRAM_BOT_TOKEN.split(':')[0];
+    
+    // Validate secret token from Telegram header
+    const telegramSecret = c.req.header('X-Telegram-Bot-Api-Secret-Token');
+    if (telegramSecret !== secretToken) {
+      console.warn('Invalid secret token received');
+      return c.json({ error: 'Unauthorized' }, 403);
+    }
+    
+    const update: TelegramUpdate = await c.req.json();
+    return handleTelegramWebhook(update, c.env, secretToken);
+  } catch (error) {
+    console.error('Webhook error:', error);
+    return c.json({ error: 'Internal Server Error' }, 500);
+  }
 });
 
 // Test API - for debugging without Telegram
