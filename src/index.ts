@@ -6,23 +6,12 @@ import { ensureWebhookSetup, getWebhookStatus } from './webhook-setup';
 
 const app = new Hono<{ Bindings: CloudBrainEnv }>();
 
-// Middleware to auto-setup webhook on first request
-app.use('*', async (c, next) => {
-  // Get the worker URL from the request
-  const workerUrl = new URL(c.req.url).origin;
-  
-  // Ensure webhook is setup (only runs once per worker instance)
-  await ensureWebhookSetup(c.env, workerUrl);
-  
-  await next();
-});
-
-// Health check
+// Health check (before middleware)
 app.get('/', (c) => {
   return c.json({ status: 'CloudBrain is running on Cloudflare! 🧠☁️' });
 });
 
-// Telegram webhook
+// Telegram webhook (before middleware to avoid issues)
 app.post('/webhook/telegram', async (c) => {
   try {
     // Get secret token from environment (derived from bot token)
@@ -62,6 +51,17 @@ app.post('/webhook/telegram', async (c) => {
     console.error('❌ Webhook error:', error);
     return new Response('OK', { status: 200 }); // Always return 200 to Telegram
   }
+});
+
+// Middleware to auto-setup webhook on first request
+app.use('*', async (c, next) => {
+  // Get the worker URL from the request
+  const workerUrl = new URL(c.req.url).origin;
+  
+  // Ensure webhook is setup (only runs once per worker instance)
+  await ensureWebhookSetup(c.env, workerUrl);
+  
+  await next();
 });
 
 // Test API - for debugging without Telegram
