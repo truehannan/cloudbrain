@@ -11,6 +11,7 @@
     "test": "echo \"no tests yet\""
   },
   "dependencies": {
+    "@codebam/cf-workers-telegram-bot": "^9.1.4",
     "hono": "^4.0.0"
   },
   "devDependencies": {

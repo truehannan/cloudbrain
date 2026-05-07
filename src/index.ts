@@ -1,224 +1,89 @@
-import { Hono } from 'hono';
-import { CloudBrainEnv, TelegramUpdate } from './types';
-import { handleTelegramWebhook } from './telegram';
-import { queryDatabase } from './db';
-import { ensureWebhookSetup, getWebhookStatus } from './webhook-setup';
+import { TelegramBot } from '@codebam/cf-workers-telegram-bot';
 
-const app = new Hono<{ Bindings: CloudBrainEnv }>();
+export interface Env {
+  SECRET_TELEGRAM_API_TOKEN: string;
+  AI: any;
+  TELEGRAM_OWNER_ID: string;
+}
 
-// Health check (before middleware)
-app.get('/', (c) => {
-  return c.json({ status: 'CloudBrain is running on Cloudflare! 🧠☁️' });
-});
-
-// Telegram webhook (skip middleware for internal requests)
-app.post('/webhook/telegram', async (c) => {
-  try {
-    // Get secret token from environment (derived from bot token)
-    const secretToken = c.env.TELEGRAM_BOT_TOKEN.split(':')[0];
-    
-    // Validate secret token from Telegram header
-    const telegramSecret = c.req.header('X-Telegram-Bot-Api-Secret-Token');
-    
-    console.log('🔔 Webhook received');
-    console.log('Expected token:', secretToken);
-    console.log('Received token:', telegramSecret);
-    console.log('Match:', telegramSecret === secretToken);
-    
-    // If token doesn't match, still return 200 but don't process
-    if (!telegramSecret || telegramSecret !== secretToken) {
-      console.warn('⚠️ Invalid or missing secret token');
-      return new Response('OK', { status: 200 });
-    }
-    
-    // Parse the update
-    let update: TelegramUpdate;
-    try {
-      update = await c.req.json();
-    } catch (e) {
-      console.error('Failed to parse JSON:', e);
-      return new Response('OK', { status: 200 });
-    }
-    
-    // Return 200 immediately - Telegram requires response within 30 seconds
-    const response = new Response('OK', { status: 200 });
-    
-    // Process update asynchronously without blocking response
-    c.executionCtx.waitUntil(handleTelegramWebhook(update, c.env, secretToken));
-    
-    return response;
-  } catch (error) {
-    console.error('❌ Webhook error:', error);
-    return new Response('OK', { status: 200 }); // Always return 200 to Telegram
-  }
-});
-
-// Test API - for debugging without Telegram
-// Requires: accountId header matching CLOUDFLARE_ACCOUNT_ID env var
-app.post('/api/test', async (c) => {
-  try {
-    // Verify credentials using CLOUDFLARE_ACCOUNT_ID
-    const providedAccountId = c.req.header('X-Account-ID');
-    const expectedAccountId = c.env.CLOUDFLARE_ACCOUNT_ID;
-
-    if (!providedAccountId || providedAccountId !== expectedAccountId) {
-      return c.json({ error: 'Unauthorized. Invalid or missing X-Account-ID header.' }, 403);
-    }
-
-    const body = await c.req.json();
-    const { message, userId } = body;
-
-    if (!message) {
-      return c.json({ error: 'Message required' }, 400);
-    }
-
-    if (!userId) {
-      return c.json({ error: 'userId required' }, 400);
-    }
-
-    // Check if user is owner
-    if (userId.toString() !== c.env.TELEGRAM_OWNER_ID) {
-      return c.json({ error: 'Unauthorized. You are not the owner.' }, 403);
-    }
-
-    // Test AI directly first
-    try {
-      const aiResponse = await c.env.AI.run('@cf/meta/llama-2-7b-chat-int8', {
-        messages: [{ role: 'user', content: message }],
-      });
-
-      return c.json({
-        success: true,
-        message: 'AI Response',
-        response: aiResponse.response || 'No response from AI',
-        aiStatus: 'success',
-      });
-    } catch (aiError) {
-      console.error('AI error:', aiError);
-      return c.json(
-        {
-          success: false,
-          error: 'AI call failed',
-          message: aiError instanceof Error ? aiError.message : String(aiError),
-        },
-        500
-      );
-    }
-  } catch (error) {
-    console.error('Test API error:', error);
-    return c.json(
-      {
-        error: 'Test API error',
-        message: error instanceof Error ? error.message : String(error),
-      },
-      500
-    );
-  }
-});
-
-// API endpoints (optional, for future expansion)
-app.get('/api/status', (c) => {
-  return c.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    platform: 'Cloudflare Workers',
-  });
-});
-
-// Check environment configuration (no credentials shown)
-app.get('/api/config', (c) => {
-  return c.json({
-    hasAI: !!c.env.AI,
-    hasTokens: {
-      TELEGRAM_BOT_TOKEN: !!c.env.TELEGRAM_BOT_TOKEN,
-      TELEGRAM_OWNER_ID: !!c.env.TELEGRAM_OWNER_ID,
-      CLOUDFLARE_API_TOKEN: !!c.env.CLOUDFLARE_API_TOKEN,
-      CLOUDFLARE_ACCOUNT_ID: !!c.env.CLOUDFLARE_ACCOUNT_ID,
-    },
-    message: 'All 4 environment variables must be present',
-  });
-});
-
-// Webhook status endpoint
-app.get('/api/webhook-status', async (c) => {
-  const status = await getWebhookStatus(c.env);
-  return c.json(status);
-});
-
-// Webhook debug endpoint - simulate Telegram webhook
-app.post('/api/webhook-test', async (c) => {
-  try {
-    // Get secret token from environment
-    const secretToken = c.env.TELEGRAM_BOT_TOKEN.split(':')[0];
-    
-    // Simulate a Telegram update
-    const simulatedUpdate: TelegramUpdate = {
-      update_id: 123456789,
-      message: {
-        message_id: 1,
-        date: Math.floor(Date.now() / 1000),
-        chat: {
-          id: parseInt(c.env.TELEGRAM_OWNER_ID),
-          type: 'private',
-        },
-        from: {
-          id: parseInt(c.env.TELEGRAM_OWNER_ID),
-          is_bot: false,
-          first_name: 'Test',
-        },
-        text: 'Hello CloudBrain',
-      },
-    };
-    
-    // Make a request to the webhook endpoint with the secret token
-    const response = await fetch(`${new URL(c.req.url).origin}/webhook/telegram`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Telegram-Bot-Api-Secret-Token': secretToken,
-      },
-      body: JSON.stringify(simulatedUpdate),
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const bot = new TelegramBot({
+      token: env.SECRET_TELEGRAM_API_TOKEN,
     });
-    
-    const result = await response.text();
-    
-    return c.json({
-      message: 'Webhook test sent',
-      status: response.status,
-      response: result,
-      secretToken: secretToken,
-      simulatedUpdate: simulatedUpdate,
-    });
-  } catch (error) {
-    return c.json({ error: String(error) }, 500);
-  }
-});
 
-app.get('/api/automations', async (c) => {
-  const automations = await queryDatabase('SELECT * FROM automations LIMIT 10', c.env);
-  return c.json(automations.data);
-});
+    // Handle webhook setup
+    if (request.method === 'GET') {
+      const url = new URL(request.url);
+      const command = url.searchParams.get('command');
+      const token = url.pathname.split('/').pop();
 
-// 404 handler
-app.notFound((c) => {
-  return c.json({ error: 'Not Found' }, 404);
-});
+      if (command === 'set' && token === env.SECRET_TELEGRAM_API_TOKEN) {
+        const webhookUrl = `${url.origin}/`;
+        const result = await bot.api.setWebhook({
+          url: webhookUrl,
+          secret_token: token,
+        });
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
 
-// Error handler
-app.onError((err, c) => {
-  console.error('Error:', err);
-  return c.json({ error: 'Internal Server Error', message: err.message }, 500);
-});
+      return new Response(JSON.stringify({ status: 'CloudBrain running' }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-// Middleware to auto-setup webhook on first request (after all routes)
-app.use('*', async (c, next) => {
-  // Get the worker URL from the request
-  const workerUrl = new URL(c.req.url).origin;
-  
-  // Ensure webhook is setup (only runs once per worker instance)
-  await ensureWebhookSetup(c.env, workerUrl);
-  
-  await next();
-});
+    // Handle webhook POST requests
+    if (request.method === 'POST') {
+      try {
+        const update = await request.json();
 
-export default app;
+        // Process message
+        if (update.message) {
+          const message = update.message;
+          const chatId = message.chat.id;
+          const userId = message.from.id;
+          const text = message.text;
+
+          // Only respond to owner
+          if (userId.toString() !== env.TELEGRAM_OWNER_ID) {
+            return new Response('OK', { status: 200 });
+          }
+
+          // Get AI response
+          try {
+            const aiResponse = await env.AI.run(
+              '@cf/meta/llama-2-7b-chat-int8',
+              {
+                messages: [{ role: 'user', content: text }],
+              }
+            );
+
+            const responseText =
+              aiResponse.response || 'No response from AI';
+
+            // Send response back to Telegram
+            await bot.api.sendMessage({
+              chat_id: chatId,
+              text: responseText,
+            });
+          } catch (aiError) {
+            console.error('AI error:', aiError);
+            await bot.api.sendMessage({
+              chat_id: chatId,
+              text: 'Error processing your message',
+            });
+          }
+        }
+
+        return new Response('OK', { status: 200 });
+      } catch (error) {
+        console.error('Webhook error:', error);
+        return new Response('OK', { status: 200 });
+      }
+    }
+
+    return new Response('Method not allowed', { status: 405 });
+  },
+};

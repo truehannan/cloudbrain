@@ -2,58 +2,6 @@ name = "cloudbrain"
 main = "src/index.ts"
 compatibility_date = "2024-01-10"
 compatibility_flags = ["nodejs_compat"]
-keep_vars = true
-
-# ============================================
-# BINDINGS CONFIGURATION
-# ============================================
-# 
-# REQUIRED BINDINGS (1 total):
-# 
-# 1. AI Binding (Workers AI)
-#    - Purpose: Claude API for agent responses
-#    - Setup: Cloudflare Dashboard → Workers & Pages → cloudbrain → Settings → Bindings
-#    - Create: Name = "AI", Type = "AI"
-#
-# KV Storage is now managed via Cloudflare API
-# - The program automatically creates and manages the 'cloudbrain' namespace
-# - No manual binding setup required
-# - Requires: CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN environment variables
-#
 
 [ai]
 binding = "AI"
-
-# ============================================
-# ENVIRONMENT VARIABLES CONFIGURATION
-# ============================================
-# 
-# IMPORTANT: The 4 required credentials should be set in Cloudflare Workers Dashboard:
-# 1. TELEGRAM_BOT_TOKEN - Get from @BotFather on Telegram
-# 2. TELEGRAM_OWNER_ID - Get from @userinfobot on Telegram
-# 3. CLOUDFLARE_ACCOUNT_ID - Find in Cloudflare Dashboard
-# 4. CLOUDFLARE_API_TOKEN - Create in Dashboard → Settings → API Tokens
-#
-# To set them:
-# 1. Go to Cloudflare Dashboard → Workers & Pages → cloudbrain
-# 2. Click "Settings" → "Variables"
-# 3. Add each variable with its value
-# 4. For sensitive tokens, use "Secrets" instead of "Variables"
-#
-# DO NOT commit credentials to this file or .env files!
-# ============================================
-
-# Development environment (for local testing with wrangler dev)
-# Create a .env.local file in the project root with your credentials
-[env.development]
-# Variables for development - use .env.local file
-# Example .env.local:
-# TELEGRAM_BOT_TOKEN=your_token_here
-# TELEGRAM_OWNER_ID=your_id_here
-# CLOUDFLARE_ACCOUNT_ID=your_account_id
-# CLOUDFLARE_API_TOKEN=your_api_token
-
-# Production environment (uses Cloudflare dashboard variables)
-# Set variables directly in Cloudflare Workers dashboard: Settings → Variables
-[env.production]
-# No vars here - they come from the dashboard
