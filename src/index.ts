@@ -30,9 +30,16 @@ app.post('/webhook/telegram', async (c) => {
     
     // Validate secret token from Telegram header
     const telegramSecret = c.req.header('X-Telegram-Bot-Api-Secret-Token');
+    
+    // Log for debugging
+    console.log('Webhook received');
+    console.log('Expected token:', secretToken);
+    console.log('Received token:', telegramSecret);
+    
     if (!telegramSecret || telegramSecret !== secretToken) {
-      console.warn('Invalid or missing secret token');
-      return new Response('Unauthorized', { status: 403 });
+      console.warn('Invalid or missing secret token - rejecting request');
+      // Still return 200 to Telegram to avoid retries
+      return new Response('OK', { status: 200 });
     }
     
     const update: TelegramUpdate = await c.req.json();
@@ -140,6 +147,27 @@ app.get('/api/config', (c) => {
 app.get('/api/webhook-status', async (c) => {
   const status = await getWebhookStatus(c.env);
   return c.json(status);
+});
+
+// Webhook debug endpoint - check if webhook is receiving requests
+app.post('/api/webhook-debug', async (c) => {
+  try {
+    const headers = c.req.raw.headers;
+    const body = await c.req.text();
+    
+    return c.json({
+      message: 'Webhook debug received',
+      headers: {
+        'X-Telegram-Bot-Api-Secret-Token': headers.get('X-Telegram-Bot-Api-Secret-Token'),
+        'Content-Type': headers.get('Content-Type'),
+        'User-Agent': headers.get('User-Agent'),
+      },
+      bodyLength: body.length,
+      bodyPreview: body.substring(0, 100),
+    });
+  } catch (error) {
+    return c.json({ error: String(error) }, 500);
+  }
 });
 
 app.get('/api/automations', async (c) => {
