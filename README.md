@@ -254,25 +254,51 @@ Or just send a message for natural language processing.
 
 1. **Check webhook status**
    ```bash
-   curl http://localhost:8787/api/webhook-status
+   curl https://cloudbrain.truehannan.workers.dev/api/webhook-status
    ```
 
-2. **Verify secret token**
-   - Token should be: first part of bot token (before `:`)
-   - Example: `123456789` from `123456789:ABCdefGHI...`
+2. **Test webhook with simulated Telegram message**
+   ```bash
+   curl -X POST https://cloudbrain.truehannan.workers.dev/api/webhook-test
+   ```
+   This will:
+   - Create a fake Telegram update
+   - Send it to your webhook with the correct secret token
+   - Show you if the webhook processes it correctly
 
-3. **Check logs**
+3. **Check logs in real-time**
    ```bash
    wrangler tail
    ```
+   Then send a test message (step 2) and watch the logs
 
-4. **Test with API**
+4. **Verify secret token**
+   - Token should be: first part of bot token (before `:`)
+   - Example: `123456789` from `123456789:ABCdefGHI...`
+
+5. **Test with API (without Telegram)**
    ```bash
-   curl -X POST http://localhost:8787/api/test \
+   curl -X POST https://cloudbrain.truehannan.workers.dev/api/test \
      -H "X-Account-ID: your_account_id" \
      -H "Content-Type: application/json" \
      -d '{"message": "test", "userId": 987654321}'
    ```
+
+### Webhook Test Flow
+
+The `/api/webhook-test` endpoint simulates exactly what Telegram sends:
+
+```
+1. Creates a fake Telegram update
+2. Sends it to /webhook/telegram with secret token
+3. Shows you the response
+4. Logs appear in: wrangler tail
+```
+
+If this works but real Telegram doesn't:
+- Telegram can't reach your worker URL
+- Check webhook status: `/api/webhook-status`
+- Verify URL is correct in Telegram settings
 
 ### Deployment Fails
 

@@ -156,21 +156,49 @@ app.get('/api/webhook-status', async (c) => {
   return c.json(status);
 });
 
-// Webhook debug endpoint - check if webhook is receiving requests
-app.post('/api/webhook-debug', async (c) => {
+// Webhook debug endpoint - simulate Telegram webhook
+app.post('/api/webhook-test', async (c) => {
   try {
-    const headers = c.req.raw.headers;
-    const body = await c.req.text();
+    // Get secret token from environment
+    const secretToken = c.env.TELEGRAM_BOT_TOKEN.split(':')[0];
+    
+    // Simulate a Telegram update
+    const simulatedUpdate: TelegramUpdate = {
+      update_id: 123456789,
+      message: {
+        message_id: 1,
+        date: Math.floor(Date.now() / 1000),
+        chat: {
+          id: parseInt(c.env.TELEGRAM_OWNER_ID),
+          type: 'private',
+        },
+        from: {
+          id: parseInt(c.env.TELEGRAM_OWNER_ID),
+          is_bot: false,
+          first_name: 'Test',
+        },
+        text: 'Hello CloudBrain',
+      },
+    };
+    
+    // Make a request to the webhook endpoint with the secret token
+    const response = await fetch(`${new URL(c.req.url).origin}/webhook/telegram`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Bot-Api-Secret-Token': secretToken,
+      },
+      body: JSON.stringify(simulatedUpdate),
+    });
+    
+    const result = await response.text();
     
     return c.json({
-      message: 'Webhook debug received',
-      headers: {
-        'X-Telegram-Bot-Api-Secret-Token': headers.get('X-Telegram-Bot-Api-Secret-Token'),
-        'Content-Type': headers.get('Content-Type'),
-        'User-Agent': headers.get('User-Agent'),
-      },
-      bodyLength: body.length,
-      bodyPreview: body.substring(0, 100),
+      message: 'Webhook test sent',
+      status: response.status,
+      response: result,
+      secretToken: secretToken,
+      simulatedUpdate: simulatedUpdate,
     });
   } catch (error) {
     return c.json({ error: String(error) }, 500);
