@@ -11,7 +11,7 @@ app.get('/', (c) => {
   return c.json({ status: 'CloudBrain is running on Cloudflare! 🧠☁️' });
 });
 
-// Telegram webhook (before middleware to avoid issues)
+// Telegram webhook (skip middleware for internal requests)
 app.post('/webhook/telegram', async (c) => {
   try {
     // Get secret token from environment (derived from bot token)
@@ -51,17 +51,6 @@ app.post('/webhook/telegram', async (c) => {
     console.error('❌ Webhook error:', error);
     return new Response('OK', { status: 200 }); // Always return 200 to Telegram
   }
-});
-
-// Middleware to auto-setup webhook on first request
-app.use('*', async (c, next) => {
-  // Get the worker URL from the request
-  const workerUrl = new URL(c.req.url).origin;
-  
-  // Ensure webhook is setup (only runs once per worker instance)
-  await ensureWebhookSetup(c.env, workerUrl);
-  
-  await next();
 });
 
 // Test API - for debugging without Telegram
@@ -219,6 +208,17 @@ app.notFound((c) => {
 app.onError((err, c) => {
   console.error('Error:', err);
   return c.json({ error: 'Internal Server Error', message: err.message }, 500);
+});
+
+// Middleware to auto-setup webhook on first request (after all routes)
+app.use('*', async (c, next) => {
+  // Get the worker URL from the request
+  const workerUrl = new URL(c.req.url).origin;
+  
+  // Ensure webhook is setup (only runs once per worker instance)
+  await ensureWebhookSetup(c.env, workerUrl);
+  
+  await next();
 });
 
 export default app;
