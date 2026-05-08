@@ -3,6 +3,8 @@ import { TelegramBot } from '@codebam/cf-workers-telegram-bot';
 export interface Env {
   SECRETS: KVNamespace;
   AI: any;
+  // Optional: for debugging
+  ENVIRONMENT?: string;
 }
 
 // System prompt for AI - defines security constraints

@@ -3,10 +3,21 @@ main = "src/index.ts"
 compatibility_date = "2024-01-10"
 compatibility_flags = ["nodejs_compat"]
 
+# KV Namespace Binding
+# The binding name 'SECRETS' is used in the code
+# Users must create a KV namespace named 'cloudbrain' and add the namespace ID below
 [[kv_namespaces]]
 binding = "SECRETS"
-id = "your-kv-namespace-id"
-preview_id = "your-preview-id"
+# Replace with your actual namespace ID from: wrangler kv:namespace list
+id = "YOUR_PRODUCTION_NAMESPACE_ID"
+preview_id = "YOUR_PREVIEW_NAMESPACE_ID"
 
 [ai]
 binding = "AI"
+
+# Environment variables (optional, for debugging)
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[env.development]
+vars = { ENVIRONMENT = "development" }

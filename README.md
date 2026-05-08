@@ -71,9 +71,9 @@ cp .env.example .env.local
 
 ### KV Namespace Setup (Required)
 
-CloudBrain stores credentials securely in Cloudflare KV. This keeps secrets out of the codebase and works for open-source deployments.
+CloudBrain uses Cloudflare KV to store credentials securely. The binding name is always `SECRETS` - this is hardcoded in the code and cannot be changed.
 
-#### Step 1: Create KV Namespace
+#### Step 1: Create KV Namespace Named "cloudbrain"
 
 ```bash
 # Create production namespace
@@ -83,72 +83,68 @@ wrangler kv:namespace create "cloudbrain"
 wrangler kv:namespace create "cloudbrain" --preview
 ```
 
-This will output namespace IDs. Save them for the next step.
+**Important**: The namespace name must be exactly `"cloudbrain"` (lowercase). This is the standard name that all CloudBrain deployments use.
 
-#### Step 2: Add Credentials to KV
+#### Step 2: Get Your Namespace IDs
 
 ```bash
-# Replace YOUR_NAMESPACE_ID with the ID from step 1
-wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID SECRET_TELEGRAM_API_TOKEN "your_bot_token_here"
-wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID TELEGRAM_OWNER_ID "your_telegram_id_here"
+# List all KV namespaces
+wrangler kv:namespace list
+```
+
+You'll see output like:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ id                               │ title                         │
+├──────────────────────────────────┼───────────────────────────────┤
+│ abc123def456ghi789jkl            │ cloudbrain                    │
+│ xyz789uvw456rst123abc            │ cloudbrain-preview            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Copy the IDs for the next step.
+
+#### Step 3: Update wrangler.toml
+
+Edit `cloudbrain/wrangler.toml` and replace the placeholder IDs:
+
+```toml
+[[kv_namespaces]]
+binding = "SECRETS"
+id = "abc123def456ghi789jkl"              # Your production ID
+preview_id = "xyz789uvw456rst123abc"      # Your preview ID
+```
+
+**Key Points**:
+- `binding = "SECRETS"` - This is hardcoded and must match the code
+- `id` - Your production namespace ID (from step 2)
+- `preview_id` - Your preview namespace ID (from step 2)
+
+#### Step 4: Add Credentials to KV
+
+```bash
+# Replace YOUR_NAMESPACE_ID with the production ID from step 2
+wrangler kv:key put --namespace-id=abc123def456ghi789jkl SECRET_TELEGRAM_API_TOKEN "your_bot_token_here"
+wrangler kv:key put --namespace-id=abc123def456ghi789jkl TELEGRAM_OWNER_ID "your_telegram_id_here"
 ```
 
 **Where to get these values:**
 - `SECRET_TELEGRAM_API_TOKEN`: Get from @BotFather on Telegram (format: `123456789:ABCdefGHI...`)
 - `TELEGRAM_OWNER_ID`: Get from @userinfobot on Telegram (your numeric ID)
 
-#### Step 3: Update wrangler.toml
+#### Step 5: Deploy
 
-Edit `wrangler.toml` and add your namespace IDs:
-
-```toml
-name = "cloudbrain"
-main = "src/index.ts"
-compatibility_date = "2024-01-10"
-compatibility_flags = ["nodejs_compat"]
-
-[[kv_namespaces]]
-binding = "SECRETS"
-id = "your-production-namespace-id"
-preview_id = "your-preview-namespace-id"
-
-[ai]
-binding = "AI"
+```bash
+wrangler deploy
 ```
 
-### Security Features
+### Why This Approach?
 
-CloudBrain includes built-in security constraints:
-
-- **KV Namespace Protection**: The AI cannot view, edit, add, or delete the `cloudbrain` KV namespace
-- **Worker Protection**: The AI cannot modify the CloudBrain worker itself
-- **API Token Protection**: Credentials are never exposed to the AI
-- **System Prompt**: Enforces security boundaries at the AI level
-
-The system prompt is hardcoded and prevents the AI from:
-- Accessing Cloudflare API tokens
-- Modifying worker configurations
-- Accessing other KV namespaces
-- Executing arbitrary code
-
-### Wrangler Configuration
-
-Your `wrangler.toml` should look like:
-
-```toml
-name = "cloudbrain"
-main = "src/index.ts"
-compatibility_date = "2024-01-10"
-compatibility_flags = ["nodejs_compat"]
-
-[[kv_namespaces]]
-binding = "SECRETS"
-id = "your-production-namespace-id"
-preview_id = "your-preview-namespace-id"
-
-[ai]
-binding = "AI"
-```
+- ✅ **Consistent naming**: All CloudBrain deployments use `SECRETS` binding
+- ✅ **Auto-detection**: Code automatically reads from the `SECRETS` binding
+- ✅ **Open-source friendly**: No hardcoded secrets in the repository
+- ✅ **Easy for contributors**: Same setup process for everyone
+- ✅ **Survives all builds**: KV namespace persists across deployments
 
 ## Development
 
