@@ -71,7 +71,7 @@ cp .env.example .env.local
 
 ### KV Namespace Setup (Required)
 
-CloudBrain uses Cloudflare KV to store credentials securely. The binding name is always `SECRETS` - this is hardcoded in the code and cannot be changed.
+CloudBrain uses Cloudflare KV to store credentials securely. The binding name is always `SECRETS` - this is hardcoded in the code.
 
 #### Step 1: Create KV Namespace Named "cloudbrain"
 
@@ -83,7 +83,7 @@ wrangler kv:namespace create "cloudbrain"
 wrangler kv:namespace create "cloudbrain" --preview
 ```
 
-**Important**: The namespace name must be exactly `"cloudbrain"` (lowercase). This is the standard name that all CloudBrain deployments use.
+**Important**: The namespace name must be exactly `"cloudbrain"` (lowercase).
 
 #### Step 2: Get Your Namespace IDs
 
@@ -119,6 +119,7 @@ preview_id = "xyz789uvw456rst123abc"      # Your preview ID
 - `binding = "SECRETS"` - This is hardcoded and must match the code
 - `id` - Your production namespace ID (from step 2)
 - `preview_id` - Your preview namespace ID (from step 2)
+- **This file is NOT gitignored** - it's safe to commit because it only contains namespace IDs, not secrets
 
 #### Step 4: Add Credentials to KV
 
@@ -145,6 +146,8 @@ wrangler deploy
 - ✅ **Open-source friendly**: No hardcoded secrets in the repository
 - ✅ **Easy for contributors**: Same setup process for everyone
 - ✅ **Survives all builds**: KV namespace persists across deployments
+- ✅ **CI/CD safe**: Namespace IDs are not secrets - they're safe to commit
+- ✅ **No wrangler.toml changes needed**: Just update the IDs once, then never touch it again
 
 ## Development
 

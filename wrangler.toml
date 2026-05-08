@@ -6,9 +6,13 @@ compatibility_flags = ["nodejs_compat"]
 # KV Namespace Binding
 # The binding name 'SECRETS' is used in the code
 # Users must create a KV namespace named 'cloudbrain' and add the namespace ID below
+# 
+# To get your namespace ID:
+#   wrangler kv:namespace list
+#
+# Then replace YOUR_PRODUCTION_NAMESPACE_ID and YOUR_PREVIEW_NAMESPACE_ID below
 [[kv_namespaces]]
 binding = "SECRETS"
-# Replace with your actual namespace ID from: wrangler kv:namespace list
 id = "YOUR_PRODUCTION_NAMESPACE_ID"
 preview_id = "YOUR_PREVIEW_NAMESPACE_ID"
 

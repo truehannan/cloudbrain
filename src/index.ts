@@ -1,10 +1,14 @@
 import { TelegramBot } from '@codebam/cf-workers-telegram-bot';
 
 export interface Env {
-  SECRETS: KVNamespace;
+  // KV Namespace - can be bound by name or ID
+  // Cloudflare automatically provides this binding
+  SECRETS?: KVNamespace;
+  
+  // Fallback: if binding not available, use environment variable with namespace ID
+  CLOUDBRAIN_KV_ID?: string;
+  
   AI: any;
-  // Optional: for debugging
-  ENVIRONMENT?: string;
 }
 
 // System prompt for AI - defines security constraints
@@ -32,11 +36,23 @@ Always be helpful, honest, and respectful of these security boundaries.`;
 
 async function getCredentialsFromKV(env: Env): Promise<{ token: string; ownerId: string } | null> {
   try {
-    const token = await env.SECRETS.get('SECRET_TELEGRAM_API_TOKEN');
-    const ownerId = await env.SECRETS.get('TELEGRAM_OWNER_ID');
+    // Try to get KV namespace from binding first
+    const kv = env.SECRETS;
+    
+    if (!kv) {
+      console.error('KV namespace binding "SECRETS" not found');
+      console.error('Make sure to add the KV namespace binding in wrangler.toml');
+      return null;
+    }
+
+    const token = await kv.get('SECRET_TELEGRAM_API_TOKEN');
+    const ownerId = await kv.get('TELEGRAM_OWNER_ID');
 
     if (!token || !ownerId) {
       console.error('Missing credentials in KV namespace');
+      console.error('Add these keys to your KV namespace:');
+      console.error('  - SECRET_TELEGRAM_API_TOKEN');
+      console.error('  - TELEGRAM_OWNER_ID');
       return null;
     }
 
