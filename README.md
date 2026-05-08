@@ -69,40 +69,85 @@ cp .env.example .env.local
 
 ## Configuration
 
-### Environment Variables
+### KV Namespace Setup (Required)
 
-Create `.env.local` with:
+CloudBrain stores credentials securely in Cloudflare KV. This keeps secrets out of the codebase and works for open-source deployments.
 
-```env
-# Telegram Bot Token (from @BotFather)
-TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklmnoPQRstuvWXYZ
+#### Step 1: Create KV Namespace
 
-# Your Telegram User ID (owner)
-TELEGRAM_OWNER_ID=987654321
+```bash
+# Create production namespace
+wrangler kv:namespace create "cloudbrain"
 
-# Cloudflare API Token
-CLOUDFLARE_API_TOKEN=your_api_token
-
-# Cloudflare Account ID
-CLOUDFLARE_ACCOUNT_ID=your_account_id
+# Create preview namespace (for testing)
+wrangler kv:namespace create "cloudbrain" --preview
 ```
 
-### Wrangler Configuration
+This will output namespace IDs. Save them for the next step.
 
-Edit `wrangler.toml`:
+#### Step 2: Add Credentials to KV
+
+```bash
+# Replace YOUR_NAMESPACE_ID with the ID from step 1
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID SECRET_TELEGRAM_API_TOKEN "your_bot_token_here"
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID TELEGRAM_OWNER_ID "your_telegram_id_here"
+```
+
+**Where to get these values:**
+- `SECRET_TELEGRAM_API_TOKEN`: Get from @BotFather on Telegram (format: `123456789:ABCdefGHI...`)
+- `TELEGRAM_OWNER_ID`: Get from @userinfobot on Telegram (your numeric ID)
+
+#### Step 3: Update wrangler.toml
+
+Edit `wrangler.toml` and add your namespace IDs:
 
 ```toml
 name = "cloudbrain"
-type = "service"
 main = "src/index.ts"
 compatibility_date = "2024-01-10"
+compatibility_flags = ["nodejs_compat"]
 
-# Bindings
-[env.production.bindings]
-AI = { type = "ai" }
-D1 = { binding = "DB", database_id = "your_db_id" }
-R2 = { binding = "BUCKET", bucket_name = "your_bucket" }
-KV = { binding = "KV", namespace_id = "your_namespace_id" }
+[[kv_namespaces]]
+binding = "SECRETS"
+id = "your-production-namespace-id"
+preview_id = "your-preview-namespace-id"
+
+[ai]
+binding = "AI"
+```
+
+### Security Features
+
+CloudBrain includes built-in security constraints:
+
+- **KV Namespace Protection**: The AI cannot view, edit, add, or delete the `cloudbrain` KV namespace
+- **Worker Protection**: The AI cannot modify the CloudBrain worker itself
+- **API Token Protection**: Credentials are never exposed to the AI
+- **System Prompt**: Enforces security boundaries at the AI level
+
+The system prompt is hardcoded and prevents the AI from:
+- Accessing Cloudflare API tokens
+- Modifying worker configurations
+- Accessing other KV namespaces
+- Executing arbitrary code
+
+### Wrangler Configuration
+
+Your `wrangler.toml` should look like:
+
+```toml
+name = "cloudbrain"
+main = "src/index.ts"
+compatibility_date = "2024-01-10"
+compatibility_flags = ["nodejs_compat"]
+
+[[kv_namespaces]]
+binding = "SECRETS"
+id = "your-production-namespace-id"
+preview_id = "your-preview-namespace-id"
+
+[ai]
+binding = "AI"
 ```
 
 ## Development

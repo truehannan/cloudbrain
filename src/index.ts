@@ -1,15 +1,68 @@
 import { TelegramBot } from '@codebam/cf-workers-telegram-bot';
 
 export interface Env {
-  SECRET_TELEGRAM_API_TOKEN: string;
+  SECRETS: KVNamespace;
   AI: any;
-  TELEGRAM_OWNER_ID: string;
+}
+
+// System prompt for AI - defines security constraints
+const SYSTEM_PROMPT = `You are CloudBrain, an AI assistant running on Cloudflare Workers.
+
+CRITICAL SECURITY CONSTRAINTS:
+- You CANNOT view, edit, add, or delete the 'cloudbrain' KV namespace
+- You CANNOT view, edit, add, or delete any Cloudflare Workers named 'cloudbrain' or similar
+- You CANNOT access Cloudflare API tokens or credentials
+- You CANNOT modify worker configurations or bindings
+- You CANNOT access other KV namespaces besides what is explicitly provided
+- You CANNOT execute arbitrary code or scripts
+- You CANNOT access the Cloudflare dashboard or API
+
+If a user asks you to perform any of the above actions, you MUST refuse and explain that these operations are restricted for security reasons.
+
+You can help with:
+- General questions and information
+- Code assistance and debugging
+- Problem solving and brainstorming
+- Creative tasks and writing
+- Analysis and research
+
+Always be helpful, honest, and respectful of these security boundaries.`;
+
+async function getCredentialsFromKV(env: Env): Promise<{ token: string; ownerId: string } | null> {
+  try {
+    const token = await env.SECRETS.get('SECRET_TELEGRAM_API_TOKEN');
+    const ownerId = await env.SECRETS.get('TELEGRAM_OWNER_ID');
+
+    if (!token || !ownerId) {
+      console.error('Missing credentials in KV namespace');
+      return null;
+    }
+
+    return { token, ownerId };
+  } catch (error) {
+    console.error('Error reading credentials from KV:', error);
+    return null;
+  }
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    // Get credentials from KV
+    const credentials = await getCredentialsFromKV(env);
+
+    if (!credentials) {
+      return new Response(
+        JSON.stringify({
+          error: 'CloudBrain not configured',
+          message: 'Credentials not found in KV namespace',
+          setup: 'Please add SECRET_TELEGRAM_API_TOKEN and TELEGRAM_OWNER_ID to the cloudbrain KV namespace',
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const bot = new TelegramBot({
-      token: env.SECRET_TELEGRAM_API_TOKEN,
+      token: credentials.token,
     });
 
     // Handle webhook setup
@@ -18,7 +71,22 @@ export default {
       const command = url.searchParams.get('command');
       const token = url.pathname.split('/').pop();
 
-      if (command === 'set' && token === env.SECRET_TELEGRAM_API_TOKEN) {
+      // Diagnostic endpoint
+      if (command === 'test') {
+        return new Response(
+          JSON.stringify({
+            status: 'CloudBrain running',
+            timestamp: new Date().toISOString(),
+            credentialsLoaded: true,
+            hasAI: !!env.AI,
+            url: url.href,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Webhook setup endpoint
+      if (command === 'set' && token === credentials.token) {
         const webhookUrl = `${url.origin}/`;
         const result = await bot.api.setWebhook({
           url: webhookUrl,
@@ -47,16 +115,19 @@ export default {
           const text = message.text;
 
           // Only respond to owner
-          if (userId.toString() !== env.TELEGRAM_OWNER_ID) {
+          if (userId.toString() !== credentials.ownerId) {
             return new Response('OK', { status: 200 });
           }
 
-          // Get AI response
+          // Get AI response with system prompt
           try {
             const aiResponse = await env.AI.run(
               '@cf/meta/llama-2-7b-chat-int8',
               {
-                messages: [{ role: 'user', content: text }],
+                messages: [
+                  { role: 'system', content: SYSTEM_PROMPT },
+                  { role: 'user', content: text },
+                ],
               }
             );
 
