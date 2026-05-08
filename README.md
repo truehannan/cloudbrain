@@ -71,9 +71,9 @@ cp .env.example .env.local
 
 ### KV Namespace Setup (Required)
 
-CloudBrain uses Cloudflare KV to store credentials securely. The binding name is always `SECRETS` - this is hardcoded in the code.
+CloudBrain uses Cloudflare KV to store credentials securely.
 
-#### Step 1: Create KV Namespace Named "cloudbrain"
+#### Step 1: Create KV Namespace
 
 ```bash
 # Create production namespace
@@ -83,57 +83,34 @@ wrangler kv:namespace create "cloudbrain"
 wrangler kv:namespace create "cloudbrain" --preview
 ```
 
-**Important**: The namespace name must be exactly `"cloudbrain"` (lowercase).
+#### Step 2: Bind KV Namespace in Cloudflare Dashboard
 
-#### Step 2: Get Your Namespace IDs
+1. Go to **Cloudflare Dashboard** → **Workers & Pages** → **CloudBrain**
+2. Click **Settings** → **Bindings**
+3. Click **Add binding** → **KV Namespace**
+4. Fill in:
+   - **Variable name**: `SECRETS` (must be exactly this)
+   - **KV Namespace**: Select `cloudbrain` from dropdown
+5. Click **Save and Deploy**
+
+That's it! The code automatically detects the binding.
+
+#### Step 3: Add Credentials to KV
 
 ```bash
-# List all KV namespaces
+# Get your namespace ID
 wrangler kv:namespace list
-```
 
-You'll see output like:
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ id                               │ title                         │
-├──────────────────────────────────┼───────────────────────────────┤
-│ abc123def456ghi789jkl            │ cloudbrain                    │
-│ xyz789uvw456rst123abc            │ cloudbrain-preview            │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-Copy the IDs for the next step.
-
-#### Step 3: Update wrangler.toml
-
-Edit `cloudbrain/wrangler.toml` and replace the placeholder IDs:
-
-```toml
-[[kv_namespaces]]
-binding = "SECRETS"
-id = "abc123def456ghi789jkl"              # Your production ID
-preview_id = "xyz789uvw456rst123abc"      # Your preview ID
-```
-
-**Key Points**:
-- `binding = "SECRETS"` - This is hardcoded and must match the code
-- `id` - Your production namespace ID (from step 2)
-- `preview_id` - Your preview namespace ID (from step 2)
-- **This file is NOT gitignored** - it's safe to commit because it only contains namespace IDs, not secrets
-
-#### Step 4: Add Credentials to KV
-
-```bash
-# Replace YOUR_NAMESPACE_ID with the production ID from step 2
-wrangler kv:key put --namespace-id=abc123def456ghi789jkl SECRET_TELEGRAM_API_TOKEN "your_bot_token_here"
-wrangler kv:key put --namespace-id=abc123def456ghi789jkl TELEGRAM_OWNER_ID "your_telegram_id_here"
+# Add credentials (replace YOUR_NAMESPACE_ID)
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID SECRET_TELEGRAM_API_TOKEN "your_bot_token"
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID TELEGRAM_OWNER_ID "your_telegram_id"
 ```
 
 **Where to get these values:**
-- `SECRET_TELEGRAM_API_TOKEN`: Get from @BotFather on Telegram (format: `123456789:ABCdefGHI...`)
-- `TELEGRAM_OWNER_ID`: Get from @userinfobot on Telegram (your numeric ID)
+- `SECRET_TELEGRAM_API_TOKEN`: Get from @BotFather on Telegram
+- `TELEGRAM_OWNER_ID`: Get from @userinfobot on Telegram
 
-#### Step 5: Deploy
+#### Step 4: Deploy
 
 ```bash
 wrangler deploy
@@ -141,13 +118,11 @@ wrangler deploy
 
 ### Why This Approach?
 
-- ✅ **Consistent naming**: All CloudBrain deployments use `SECRETS` binding
-- ✅ **Auto-detection**: Code automatically reads from the `SECRETS` binding
-- ✅ **Open-source friendly**: No hardcoded secrets in the repository
-- ✅ **Easy for contributors**: Same setup process for everyone
-- ✅ **Survives all builds**: KV namespace persists across deployments
-- ✅ **CI/CD safe**: Namespace IDs are not secrets - they're safe to commit
-- ✅ **No wrangler.toml changes needed**: Just update the IDs once, then never touch it again
+- ✅ **No manual ID editing**: Bind in dashboard, code auto-detects
+- ✅ **No wrangler.toml changes**: Binding is in Cloudflare dashboard
+- ✅ **Survives all builds**: Binding persists in dashboard
+- ✅ **CI/CD safe**: No configuration files to manage
+- ✅ **Open-source friendly**: Same setup for all contributors
 
 ## Development
 

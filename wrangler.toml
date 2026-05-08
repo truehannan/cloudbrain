@@ -4,24 +4,18 @@ compatibility_date = "2024-01-10"
 compatibility_flags = ["nodejs_compat"]
 
 # KV Namespace Binding
-# The binding name 'SECRETS' is used in the code
-# Users must create a KV namespace named 'cloudbrain' and add the namespace ID below
-# 
-# To get your namespace ID:
-#   wrangler kv:namespace list
+# Bind your KV namespace in Cloudflare Dashboard:
+# 1. Go to Workers → CloudBrain → Settings → Bindings
+# 2. Add KV Namespace binding with:
+#    - Variable name: SECRETS
+#    - KV Namespace: cloudbrain (or your namespace name)
+# 3. No need to edit this file - binding is done in dashboard
 #
-# Then replace YOUR_PRODUCTION_NAMESPACE_ID and YOUR_PREVIEW_NAMESPACE_ID below
-[[kv_namespaces]]
-binding = "SECRETS"
-id = "YOUR_PRODUCTION_NAMESPACE_ID"
-preview_id = "YOUR_PREVIEW_NAMESPACE_ID"
+# For local development, you can add:
+# [[kv_namespaces]]
+# binding = "SECRETS"
+# id = "your-namespace-id"
+# preview_id = "your-preview-id"
 
 [ai]
 binding = "AI"
-
-# Environment variables (optional, for debugging)
-[env.production]
-vars = { ENVIRONMENT = "production" }
-
-[env.development]
-vars = { ENVIRONMENT = "development" }
