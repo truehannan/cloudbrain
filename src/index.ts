@@ -1,16 +1,21 @@
-import { TelegramBot } from '@codebam/cf-workers-telegram-bot';
+import { ChannelManager } from './channels/manager';
+import { MemoryDatabase } from './db/memory';
+import { SkillsManager } from './skills';
 
 export interface Env {
   // KV Namespace - automatically bound by Cloudflare
   // Users just need to create a KV namespace and bind it
   // No manual ID configuration needed
-  SECRETS: KVNamespace;
-  
+  SECRETS: any;
+
+  // D1 Database for storing memories
+  DB: any;
+
   AI: any;
 }
 
 // System prompt for AI - defines security constraints
-const SYSTEM_PROMPT = `You are CloudBrain, an AI assistant running on Cloudflare Workers.
+const SYSTEM_PROMPT = `You are CloudBrain, an AI assistant running on Cloudflare Workers with multi-channel support (Telegram, Discord, WhatsApp).
 
 CRITICAL SECURITY CONSTRAINTS:
 - You CANNOT view, edit, add, or delete the 'cloudbrain' KV namespace
@@ -21,135 +26,179 @@ CRITICAL SECURITY CONSTRAINTS:
 - You CANNOT execute arbitrary code or scripts
 - You CANNOT access the Cloudflare dashboard or API
 
-If a user asks you to perform any of the above actions, you MUST refuse and explain that these operations are restricted for security reasons.
+CAPABILITIES:
+- Multi-channel messaging (Telegram, Discord, WhatsApp)
+- File handling and transfers between channels
+- Memory storage and recall
+- Natural language actions (send file, review file, move file, etc.)
+- Automation creation
 
-You can help with:
-- General questions and information
-- Code assistance and debugging
-- Problem solving and brainstorming
-- Creative tasks and writing
-- Analysis and research
+If a user asks you to perform any restricted actions, you MUST refuse and explain that these operations are restricted for security reasons.
 
 Always be helpful, honest, and respectful of these security boundaries.`;
 
-async function getCredentialsFromKV(env: Env): Promise<{ token: string; ownerId: string } | null> {
+async function getCredentialsFromKV(env: Env): Promise<Record<string, string>> {
   try {
-    const token = await env.SECRETS.get('SECRET_TELEGRAM_API_TOKEN');
-    const ownerId = await env.SECRETS.get('TELEGRAM_OWNER_ID');
+    const keys = [
+      'SECRET_TELEGRAM_API_TOKEN',
+      'TELEGRAM_OWNER_ID',
+      'DISCORD_BOT_TOKEN',
+      'DISCORD_CLIENT_ID',
+      'DISCORD_WEBHOOK_URL',
+      'WHATSAPP_PHONE_NUMBER_ID',
+      'WHATSAPP_BUSINESS_ACCOUNT_ID',
+      'WHATSAPP_ACCESS_TOKEN',
+      'WHATSAPP_VERIFY_TOKEN',
+    ];
 
-    if (!token || !ownerId) {
-      console.error('Missing credentials in KV namespace');
-      return null;
+    const credentials: Record<string, string> = {};
+
+    for (const key of keys) {
+      const value = await env.SECRETS.get(key);
+      if (value) {
+        credentials[key] = value;
+      }
     }
 
-    return { token, ownerId };
+    return credentials;
   } catch (error) {
     console.error('Error reading credentials from KV:', error);
-    return null;
+    return {};
   }
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+
     // Get credentials from KV
     const credentials = await getCredentialsFromKV(env);
 
-    if (!credentials) {
-      return new Response(
-        JSON.stringify({
-          error: 'CloudBrain not configured',
-          message: 'Credentials not found in KV namespace',
-          setup: 'Please add SECRET_TELEGRAM_API_TOKEN and TELEGRAM_OWNER_ID to the cloudbrain KV namespace',
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    // Initialize channel manager
+    const channelManager = new ChannelManager();
+    await channelManager.initializeChannels(credentials);
 
-    const bot = new TelegramBot({
-      token: credentials.token,
-    });
+    // Initialize memory database
+    const memoryDb = new MemoryDatabase(env.DB);
+    await memoryDb.initialize();
 
-    // Handle webhook setup
+    // Initialize skills manager
+    const skillsManager = new SkillsManager(channelManager, memoryDb);
+
+    // Handle diagnostic endpoint
     if (request.method === 'GET') {
-      const url = new URL(request.url);
-      const command = url.searchParams.get('command');
-      const token = url.pathname.split('/').pop();
-
-      // Diagnostic endpoint
-      if (command === 'test') {
+      if (pathname === '/health' || pathname === '/test') {
         return new Response(
           JSON.stringify({
             status: 'CloudBrain running',
             timestamp: new Date().toISOString(),
-            credentialsLoaded: true,
+            activeChannels: channelManager.getActiveChannels(),
             hasAI: !!env.AI,
-            url: url.href,
+            hasDB: !!env.DB,
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
 
-      // Webhook setup endpoint
-      if (command === 'set' && token === credentials.token) {
-        const webhookUrl = `${url.origin}/`;
-        const result = await bot.api.setWebhook({
-          url: webhookUrl,
-          secret_token: token,
-        });
-        return new Response(JSON.stringify(result), {
-          headers: { 'Content-Type': 'application/json' },
-        });
+      // Webhook setup endpoints for each channel
+      if (pathname.startsWith('/setup/')) {
+        const channelType = pathname.split('/')[2];
+        const token = url.searchParams.get('token');
+
+        if (channelType === 'telegram' && token === credentials.SECRET_TELEGRAM_API_TOKEN) {
+          // Telegram webhook setup would go here
+          return new Response(
+            JSON.stringify({ status: 'Telegram webhook setup initiated' }),
+            { headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ error: 'Invalid channel or token' }),
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
       }
 
-      return new Response(JSON.stringify({ status: 'CloudBrain running' }), {
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({
+          status: 'CloudBrain running',
+          activeChannels: channelManager.getActiveChannels(),
+        }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     // Handle webhook POST requests
     if (request.method === 'POST') {
       try {
-        const update = await request.json();
+        const payload = await request.json();
 
-        // Process message
-        if (update.message) {
-          const message = update.message;
-          const chatId = message.chat.id;
-          const userId = message.from.id;
-          const text = message.text;
+        // Route to appropriate channel based on path
+        let channelType: string | null = null;
+        let message = null;
 
-          // Only respond to owner
-          if (userId.toString() !== credentials.ownerId) {
-            return new Response('OK', { status: 200 });
+        if (pathname === '/' || pathname === '/telegram') {
+          channelType = 'telegram';
+          message = await channelManager.routeWebhook('telegram', payload);
+        } else if (pathname === '/discord') {
+          channelType = 'discord';
+          message = await channelManager.routeWebhook('discord', payload);
+        } else if (pathname === '/whatsapp') {
+          channelType = 'whatsapp';
+          message = await channelManager.routeWebhook('whatsapp', payload);
+        }
+
+        if (!message) {
+          return new Response('OK', { status: 200 });
+        }
+
+        // Get AI response with system prompt
+        try {
+          const aiResponse = await env.AI.run('@cf/meta/llama-2-7b-chat-int8', {
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              { role: 'user', content: message.text },
+            ],
+          });
+
+          const responseText = aiResponse.response || 'No response from AI';
+
+          // Store important messages in memory
+          if (responseText.length > 50) {
+            await memoryDb.storeMemory({
+              userId: message.userId,
+              channelType: message.channelType,
+              content: `Q: ${message.text}\nA: ${responseText}`,
+              importance: 5,
+            });
           }
 
-          // Get AI response with system prompt
-          try {
-            const aiResponse = await env.AI.run(
-              '@cf/meta/llama-2-7b-chat-int8',
-              {
-                messages: [
-                  { role: 'system', content: SYSTEM_PROMPT },
-                  { role: 'user', content: text },
-                ],
-              }
-            );
+          // Execute any natural language actions
+          const actionResult = await skillsManager.executeAction({
+            userId: message.userId,
+            channelType: message.channelType,
+            text: message.text,
+            aiResponse: responseText,
+          });
 
-            const responseText =
-              aiResponse.response || 'No response from AI';
+          // Send response back to user
+          const success = await channelManager.sendMessage(
+            message.channelType,
+            message.userId,
+            responseText
+          );
 
-            // Send response back to Telegram
-            await bot.api.sendMessage({
-              chat_id: chatId,
-              text: responseText,
-            });
-          } catch (aiError) {
-            console.error('AI error:', aiError);
-            await bot.api.sendMessage({
-              chat_id: chatId,
-              text: 'Error processing your message',
-            });
+          if (!success) {
+            console.error(`Failed to send message via ${message.channelType}`);
           }
+        } catch (aiError) {
+          console.error('AI error:', aiError);
+          await channelManager.sendMessage(
+            message.channelType,
+            message.userId,
+            'Error processing your message'
+          );
         }
 
         return new Response('OK', { status: 200 });

@@ -1,7 +1,7 @@
 {
   "name": "cloudbrain",
-  "version": "1.0.0",
-  "description": "AI Agent powered by Cloudflare Workers & AI Gateway, controlled via Telegram",
+  "version": "2.0.0",
+  "description": "Multi-channel AI Agent powered by Cloudflare Workers & AI Gateway - Telegram, Discord, WhatsApp",
   "main": "src/index.ts",
   "scripts": {
     "dev": "wrangler dev",
@@ -12,10 +12,13 @@
   },
   "dependencies": {
     "@codebam/cf-workers-telegram-bot": "^9.1.4",
-    "hono": "^4.0.0"
+    "discord.js": "^14.14.0",
+    "hono": "^4.0.0",
+    "whatsapp-web.js": "^1.25.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20231218.0",
+    "@types/node": "^20.0.0",
     "typescript": "^5.3.0",
     "wrangler": "^3.26.0"
   }
