@@ -1,14 +1,26 @@
-# CloudBrain - Telegram Bot on Cloudflare Workers
+# CloudBrain - Multi-Channel AI Agent on Cloudflare Workers
 
-An AI-powered Telegram bot running on Cloudflare Workers with webhook integration, database support, and file storage.
+An AI-powered multi-channel agent running on Cloudflare Workers with support for Telegram, Discord, and WhatsApp. Features webhook integration, memory database, file storage, and natural language actions.
 
 ## Features
 
-- **Telegram Bot Integration** with webhook support
+- **Multi-Channel Support**
+  - Telegram Bot with webhook integration
+  - Discord Bot with slash commands and interactions
+  - WhatsApp Cloud API integration
+  - Auto-detect and activate channels based on available credentials
+  - Same commands work across all channels
+
 - **AI Capabilities** using Cloudflare AI Gateway (Llama 2)
-- **Database Support** with Cloudflare D1
+- **Memory Database** with Cloudflare D1 for storing important memories
 - **File Storage** with Cloudflare R2
-- **KV Storage** for caching and sessions
+- **KV Storage** for credentials and caching
+- **Natural Language Actions**
+  - Send/share files
+  - Review/analyze files
+  - Store and recall memories
+  - Move files between channels
+  - Create automations
 - **Async Processing** for non-blocking responses
 - **Secret Token Validation** for security
 - **Serverless** - no server management needed
@@ -22,26 +34,32 @@ An AI-powered Telegram bot running on Cloudflare Workers with webhook integratio
 - **Storage**: Cloudflare R2 (S3-compatible)
 - **Cache**: Cloudflare KV
 - **AI**: Cloudflare AI Gateway
+- **Channels**: 
+  - Telegram: `@codebam/cf-workers-telegram-bot`
+  - Discord: Discord.js (API-based)
+  - WhatsApp: WhatsApp Cloud API
 
 ## Project Structure
 
 ```
 cloudbrain/
 ├── src/
-│   ├── index.ts              # Main worker entry point
-│   ├── telegram.ts           # Telegram message handling
-│   ├── webhook-setup.ts      # Webhook registration
-│   ├── types.ts              # TypeScript types
-│   ├── db.ts                 # Database operations
-│   ├── kv.ts                 # KV storage operations
-│   ├── storage.ts            # R2 file storage
-│   ├── actions.ts            # AI actions
-│   ├── models.ts             # Available AI models
-│   └── polling.ts            # Alternative polling method
-├── wrangler.toml             # Cloudflare Workers config
-├── package.json              # Dependencies
-├── tsconfig.json             # TypeScript config
-└── .env.example              # Environment variables template
+│   ├── index.ts                    # Main worker entry point
+│   ├── channels/
+│   │   ├── base.ts                 # Base channel interface
+│   │   ├── telegram.ts             # Telegram channel adapter
+│   │   ├── discord.ts              # Discord channel adapter
+│   │   ├── whatsapp.ts             # WhatsApp channel adapter
+│   │   └── manager.ts              # Channel manager & router
+│   ├── db/
+│   │   └── memory.ts               # Memory database layer
+│   ├── skills/
+│   │   └── index.ts                # Natural language actions
+│   └── types.ts                    # TypeScript types
+├── wrangler.toml                   # Cloudflare Workers config
+├── package.json                    # Dependencies
+├── tsconfig.json                   # TypeScript config
+└── .env.example                    # Environment variables template
 ```
 
 ## Installation
@@ -71,7 +89,7 @@ cp .env.example .env.local
 
 ### KV Namespace Setup (Required)
 
-CloudBrain uses Cloudflare KV to store credentials securely.
+CloudBrain uses Cloudflare KV to store credentials securely for all channels.
 
 #### Step 1: Create KV Namespace
 
@@ -97,24 +115,48 @@ That's it! The code automatically detects the binding.
 
 #### Step 3: Add Credentials to KV
 
-```bash
-# Get your namespace ID
-wrangler kv:namespace list
+Add credentials for the channels you want to use:
 
-# Add credentials (replace YOUR_NAMESPACE_ID)
+**Telegram** (optional):
+```bash
 wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID SECRET_TELEGRAM_API_TOKEN "your_bot_token"
 wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID TELEGRAM_OWNER_ID "your_telegram_id"
 ```
 
+**Discord** (optional):
+```bash
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID DISCORD_BOT_TOKEN "your_bot_token"
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID DISCORD_CLIENT_ID "your_client_id"
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID DISCORD_WEBHOOK_URL "your_webhook_url"
+```
+
+**WhatsApp** (optional):
+```bash
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID WHATSAPP_PHONE_NUMBER_ID "your_phone_number_id"
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID WHATSAPP_BUSINESS_ACCOUNT_ID "your_business_account_id"
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID WHATSAPP_ACCESS_TOKEN "your_access_token"
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID WHATSAPP_VERIFY_TOKEN "your_verify_token"
+```
+
 **Where to get these values:**
-- `SECRET_TELEGRAM_API_TOKEN`: Get from @BotFather on Telegram
-- `TELEGRAM_OWNER_ID`: Get from @userinfobot on Telegram
+- **Telegram**: Get from @BotFather and @userinfobot
+- **Discord**: Get from Discord Developer Portal
+- **WhatsApp**: Get from Meta Business Platform
 
 #### Step 4: Deploy
 
 ```bash
 wrangler deploy
 ```
+
+### Multi-Channel Auto-Detection
+
+CloudBrain automatically detects which channels are configured:
+- If Telegram credentials are present → Telegram channel activated
+- If Discord credentials are present → Discord channel activated
+- If WhatsApp credentials are present → WhatsApp channel activated
+- All active channels work simultaneously
+- Same commands work across all channels
 
 ### Why This Approach?
 
@@ -123,6 +165,7 @@ wrangler deploy
 - ✅ **Survives all builds**: Binding persists in dashboard
 - ✅ **CI/CD safe**: No configuration files to manage
 - ✅ **Open-source friendly**: Same setup for all contributors
+- ✅ **Multi-channel ready**: Add/remove channels by adding/removing credentials
 
 ## Development
 
@@ -207,19 +250,20 @@ Send a message to your Telegram bot. The bot should respond within 1-2 seconds.
 
 ## API Endpoints
 
-### Webhook
-- `POST /webhook/telegram` - Receives updates from Telegram
+### Webhooks
+- `POST /` - Telegram webhook (default)
+- `POST /telegram` - Telegram webhook (explicit)
+- `POST /discord` - Discord webhook
+- `POST /whatsapp` - WhatsApp webhook
 
 ### Testing
-- `POST /api/test` - Test AI without Telegram (requires X-Account-ID header)
-- `GET /api/webhook-status` - Check webhook status
-- `POST /api/webhook-debug` - Debug webhook requests
+- `GET /health` - Health check with active channels
+- `GET /test` - Test endpoint
 
 ### Information
-- `GET /` - Health check
-- `GET /api/status` - Worker status
-- `GET /api/config` - Configuration check
-- `GET /api/automations` - List automations
+- `GET /setup/telegram?token=YOUR_TOKEN` - Setup Telegram webhook
+- `GET /setup/discord?token=YOUR_TOKEN` - Setup Discord webhook
+- `GET /setup/whatsapp?token=YOUR_TOKEN` - Setup WhatsApp webhook
 
 ## Telegram Bot Commands
 
@@ -237,87 +281,155 @@ Send these commands to your bot:
 
 Or just send a message for natural language processing.
 
+## Natural Language Actions
+
+CloudBrain understands natural language commands across all channels:
+
+### Send/Share Files
+```
+"send me that file"
+"share that document"
+"give me the image"
+```
+
+### Review/Analyze Files
+```
+"review that file"
+"check that document"
+"analyze that image"
+```
+
+### Store Memories
+```
+"remember this"
+"save this information"
+"note this down"
+```
+
+### Move Files Between Channels
+```
+"move this from telegram to discord"
+"transfer that file to whatsapp"
+"copy this from discord to telegram"
+```
+
+### Create Automations
+```
+"make automation for daily reports"
+"create automation to check prices"
+"setup automation for notifications"
+```
+
+### Recall Memories
+```
+"what did I tell you?"
+"remind me about that"
+"recall my memories"
+```
+
 ## How It Works
+
+### Multi-Channel Architecture
+
+1. **Channel Manager** detects available credentials in KV
+2. **Initializes active channels** (Telegram, Discord, WhatsApp)
+3. **Routes incoming webhooks** to appropriate channel handler
+4. **Processes message** with AI
+5. **Executes natural language actions** if detected
+6. **Stores important memories** in D1 database
+7. **Sends response** back through the same channel
 
 ### Webhook Flow
 
-1. **Telegram sends update** → `POST /webhook/telegram`
-2. **Validate secret token** from `X-Telegram-Bot-Api-Secret-Token` header
-3. **Return 200 OK immediately** (Telegram requirement)
+1. **Incoming webhook** → `POST /` (or `/telegram`, `/discord`, `/whatsapp`)
+2. **Validate secret token** from channel-specific headers
+3. **Return 200 OK immediately** (channel requirement)
 4. **Process message asynchronously** in background
-5. **Send response** back to Telegram
+5. **Send response** back to user
 
 ### Message Processing
 
-1. **Parse intent** using AI (text, image, database query, etc.)
-2. **Execute action** based on intent
-3. **Generate response** using AI
-4. **Send to Telegram** via API
+1. **Parse message** from channel-specific format
+2. **Extract intent** using AI (text, image, action, etc.)
+3. **Execute action** based on intent (if natural language action detected)
+4. **Generate response** using AI with system prompt
+5. **Store memory** if important (importance >= 5)
+6. **Send to user** via appropriate channel
 
-### Database Operations
+### Memory Database
 
-- Store user information
-- Store message history
-- Store automations
-- Query data
+- **Auto-creates D1 table** on first request
+- **Stores important conversations** with importance scores
+- **Supports search** across all memories
+- **Automatic cleanup** of old memories (configurable)
+- **Per-user memories** with channel tracking
 
-### File Storage
+### File Operations
 
-- Upload files to R2
-- Download files from R2
-- List stored files
+- **Send files** across channels
+- **Move files** between channels
+- **Store files** in R2 storage
+- **Retrieve files** from R2
+- **Share files** with natural language commands
 
 ## Troubleshooting
+
+### No Channels Active
+
+1. **Check KV credentials**
+   ```bash
+   wrangler kv:key list --namespace-id=YOUR_NAMESPACE_ID
+   ```
+
+2. **Verify credentials are correct**
+   - Telegram: Token format should be `123456789:ABCdefGHI...`
+   - Discord: Token should start with `MTA...`
+   - WhatsApp: Token should be a long string
+
+3. **Check logs**
+   ```bash
+   wrangler tail
+   ```
+
+### Specific Channel Not Working
+
+1. **Check if channel is active**
+   ```bash
+   curl https://cloudbrain.workers.dev/health
+   ```
+
+2. **Verify credentials in KV**
+   ```bash
+   wrangler kv:key get --namespace-id=YOUR_NAMESPACE_ID CHANNEL_CREDENTIAL_NAME
+   ```
+
+3. **Test channel webhook**
+   - Telegram: Send a message to your bot
+   - Discord: Send a slash command
+   - WhatsApp: Send a message to your WhatsApp number
 
 ### Bot Not Responding
 
 1. **Check webhook status**
    ```bash
-   curl https://cloudbrain.truehannan.workers.dev/api/webhook-status
+   curl https://cloudbrain.workers.dev/health
    ```
 
-2. **Test webhook with simulated Telegram message**
-   ```bash
-   curl -X POST https://cloudbrain.truehannan.workers.dev/api/webhook-test
-   ```
-   This will:
-   - Create a fake Telegram update
-   - Send it to your webhook with the correct secret token
-   - Show you if the webhook processes it correctly
-
-3. **Check logs in real-time**
+2. **Check logs in real-time**
    ```bash
    wrangler tail
    ```
-   Then send a test message (step 2) and watch the logs
 
-4. **Verify secret token**
-   - Token should be: first part of bot token (before `:`)
-   - Example: `123456789` from `123456789:ABCdefGHI...`
+3. **Verify secret tokens**
+   - Each channel has its own secret token
+   - Tokens must match exactly
 
-5. **Test with API (without Telegram)**
+4. **Test with API (without channel)**
    ```bash
-   curl -X POST https://cloudbrain.truehannan.workers.dev/api/test \
-     -H "X-Account-ID: your_account_id" \
+   curl -X POST https://cloudbrain.workers.dev/api/test \
      -H "Content-Type: application/json" \
-     -d '{"message": "test", "userId": 987654321}'
+     -d '{"message": "test"}'
    ```
-
-### Webhook Test Flow
-
-The `/api/webhook-test` endpoint simulates exactly what Telegram sends:
-
-```
-1. Creates a fake Telegram update
-2. Sends it to /webhook/telegram with secret token
-3. Shows you the response
-4. Logs appear in: wrangler tail
-```
-
-If this works but real Telegram doesn't:
-- Telegram can't reach your worker URL
-- Check webhook status: `/api/webhook-status`
-- Verify URL is correct in Telegram settings
 
 ### Deployment Fails
 
@@ -331,6 +443,13 @@ If this works but real Telegram doesn't:
 1. Verify AI binding in wrangler.toml
 2. Check Cloudflare AI Gateway is enabled
 3. Review error logs
+
+### Memory Database Issues
+
+1. Check D1 database is bound in wrangler.toml
+2. Verify database exists in Cloudflare dashboard
+3. Check database permissions
+4. Review D1 logs
 
 ## Available Commands
 
