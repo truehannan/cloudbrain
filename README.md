@@ -87,85 +87,130 @@ cp .env.example .env.local
 
 ## Configuration
 
-### KV Namespace Setup (Required)
+### Cloudflare Bindings (REQUIRED - All 3 Must Be Configured)
 
-CloudBrain uses Cloudflare KV to store credentials securely for all channels.
+CloudBrain requires 3 Cloudflare bindings. Configure all of them in Cloudflare Dashboard.
 
-#### Step 1: Create KV Namespace
+#### 1. SECRETS (KV Namespace)
+- **Purpose**: Stores all channel credentials
+- **KV Namespace Name**: `cloudbrain`
+- **Binding Variable Name**: `SECRETS`
+- **Setup**:
+  ```bash
+  wrangler kv:namespace create "cloudbrain"
+  wrangler kv:namespace create "cloudbrain" --preview
+  ```
+- **Bind in Dashboard**: Workers → CloudBrain → Settings → Bindings → Add KV Namespace
 
+#### 2. DB (D1 Database)
+- **Purpose**: Stores memories and conversation history
+- **Database Name**: `cloudbrain`
+- **Binding Variable Name**: `DB`
+- **Setup**:
+  ```bash
+  wrangler d1 create cloudbrain
+  wrangler d1 create cloudbrain --preview
+  ```
+- **Bind in Dashboard**: Workers → CloudBrain → Settings → Bindings → Add D1 Database
+
+#### 3. AI (AI Gateway)
+- **Purpose**: Provides Llama 2 model access
+- **Binding Variable Name**: `AI`
+- **Setup**: Already available in Cloudflare
+- **Bind in Dashboard**: Workers → CloudBrain → Settings → Bindings → Add AI
+
+---
+
+### Channel Credentials (OPTIONAL - Choose At Least One)
+
+Add credentials to KV for channels you want to use. If no credentials provided, that channel will be disabled.
+
+#### Telegram (2 Credentials Required)
+
+**Get credentials**:
+1. **Bot Token**: Message [@BotFather](https://t.me/BotFather) → `/newbot` → Get token
+   - Format: `123456789:ABCdefGHIjklmnoPQRstuvWXYZ`
+2. **Owner ID**: Message [@userinfobot](https://t.me/userinfobot) → Get your numeric ID
+   - Format: `987654321`
+
+**Add to KV**:
 ```bash
-# Create production namespace
-wrangler kv:namespace create "cloudbrain"
-
-# Create preview namespace (for testing)
-wrangler kv:namespace create "cloudbrain" --preview
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID SECRET_TELEGRAM_API_TOKEN "123456789:ABCdefGHI..."
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID TELEGRAM_OWNER_ID "987654321"
 ```
 
-#### Step 2: Bind KV Namespace in Cloudflare Dashboard
+**KV Key Names**:
+- `SECRET_TELEGRAM_API_TOKEN` - Your bot token
+- `TELEGRAM_OWNER_ID` - Your Telegram user ID
 
-1. Go to **Cloudflare Dashboard** → **Workers & Pages** → **CloudBrain**
-2. Click **Settings** → **Bindings**
-3. Click **Add binding** → **KV Namespace**
-4. Fill in:
-   - **Variable name**: `SECRETS` (must be exactly this)
-   - **KV Namespace**: Select `cloudbrain` from dropdown
-5. Click **Save and Deploy**
+---
 
-That's it! The code automatically detects the binding.
+#### Discord (3 Credentials Required)
 
-#### Step 3: Add Credentials to KV
+**Get credentials**:
+1. **Bot Token**: https://discord.com/developers/applications → Create App → Bot → Copy Token
+   - Format: `MTA...` (starts with MTA)
+2. **Client ID**: Same page → General Information → Application ID
+   - Format: `123456789`
+3. **Webhook URL**: Your worker URL
+   - Format: `https://cloudbrain.workers.dev/discord`
 
-Add credentials for the channels you want to use:
-
-**Telegram** (optional):
+**Add to KV**:
 ```bash
-wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID SECRET_TELEGRAM_API_TOKEN "your_bot_token"
-wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID TELEGRAM_OWNER_ID "your_telegram_id"
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID DISCORD_BOT_TOKEN "MTA..."
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID DISCORD_CLIENT_ID "123456789"
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID DISCORD_WEBHOOK_URL "https://cloudbrain.workers.dev/discord"
 ```
 
-**Discord** (optional):
+**KV Key Names**:
+- `DISCORD_BOT_TOKEN` - Your bot token
+- `DISCORD_CLIENT_ID` - Your application ID
+- `DISCORD_WEBHOOK_URL` - Your worker webhook URL
+
+---
+
+#### WhatsApp (4 Credentials Required)
+
+**Get credentials**:
+1. **Phone Number ID**: https://developers.facebook.com/docs/whatsapp/cloud-api → WhatsApp → Phone Number ID
+   - Format: `123456789`
+2. **Business Account ID**: Same dashboard
+   - Format: `987654321`
+3. **Access Token**: Generate from Meta Business Platform
+   - Format: `EAABs...` (long string)
+4. **Verify Token**: Create any random string
+   - Format: `my_verify_token_123`
+
+**Add to KV**:
 ```bash
-wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID DISCORD_BOT_TOKEN "your_bot_token"
-wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID DISCORD_CLIENT_ID "your_client_id"
-wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID DISCORD_WEBHOOK_URL "your_webhook_url"
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID WHATSAPP_PHONE_NUMBER_ID "123456789"
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID WHATSAPP_BUSINESS_ACCOUNT_ID "987654321"
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID WHATSAPP_ACCESS_TOKEN "EAABs..."
+wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID WHATSAPP_VERIFY_TOKEN "my_verify_token_123"
 ```
 
-**WhatsApp** (optional):
-```bash
-wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID WHATSAPP_PHONE_NUMBER_ID "your_phone_number_id"
-wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID WHATSAPP_BUSINESS_ACCOUNT_ID "your_business_account_id"
-wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID WHATSAPP_ACCESS_TOKEN "your_access_token"
-wrangler kv:key put --namespace-id=YOUR_NAMESPACE_ID WHATSAPP_VERIFY_TOKEN "your_verify_token"
-```
+**KV Key Names**:
+- `WHATSAPP_PHONE_NUMBER_ID` - Your phone number ID
+- `WHATSAPP_BUSINESS_ACCOUNT_ID` - Your business account ID
+- `WHATSAPP_ACCESS_TOKEN` - Your access token
+- `WHATSAPP_VERIFY_TOKEN` - Your verify token
 
-**Where to get these values:**
-- **Telegram**: Get from @BotFather and @userinfobot
-- **Discord**: Get from Discord Developer Portal
-- **WhatsApp**: Get from Meta Business Platform
-
-#### Step 4: Deploy
-
-```bash
-wrangler deploy
-```
+---
 
 ### Multi-Channel Auto-Detection
 
 CloudBrain automatically detects which channels are configured:
-- If Telegram credentials are present → Telegram channel activated
-- If Discord credentials are present → Discord channel activated
-- If WhatsApp credentials are present → WhatsApp channel activated
+- If Telegram credentials present → Telegram channel activated
+- If Discord credentials present → Discord channel activated
+- If WhatsApp credentials present → WhatsApp channel activated
 - All active channels work simultaneously
 - Same commands work across all channels
 
-### Why This Approach?
+### Deploy
 
-- ✅ **No manual ID editing**: Bind in dashboard, code auto-detects
-- ✅ **No wrangler.toml changes**: Binding is in Cloudflare dashboard
-- ✅ **Survives all builds**: Binding persists in dashboard
-- ✅ **CI/CD safe**: No configuration files to manage
-- ✅ **Open-source friendly**: Same setup for all contributors
-- ✅ **Multi-channel ready**: Add/remove channels by adding/removing credentials
+```bash
+wrangler deploy
+```
 
 ## Development
 
