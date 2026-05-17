@@ -19,3 +19,19 @@ compatibility_flags = ["nodejs_compat"]
 
 [ai]
 binding = "AI"
+
+# Observability - Enable live logs
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
