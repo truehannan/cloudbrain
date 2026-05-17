@@ -2,6 +2,7 @@ import { ChannelManager } from './channels/manager';
 import { MemoryDatabase } from './db/memory';
 import { SkillsManager } from './skills';
 import { AgentCoordinator } from './agents/coordinator';
+import { ensureWebhookSetup, getWebhookStatus } from './webhook-setup';
 
 export interface Env {
   // KV Namespace - automatically bound by Cloudflare
@@ -121,6 +122,11 @@ export default {
       logger.debug('REQUEST', 'Initializing agent coordinator', { requestId });
       const agentCoordinator = new AgentCoordinator(channelManager, memoryDb, env.AI);
 
+      // Ensure Telegram webhook is registered (runs once per worker instance)
+      logger.debug('REQUEST', 'Checking Telegram webhook setup', { requestId });
+      const workerUrl = new URL(request.url).origin;
+      await ensureWebhookSetup(env as any, workerUrl);
+
       // Handle diagnostic endpoint
       if (request.method === 'GET') {
         if (pathname === '/health' || pathname === '/test') {
@@ -132,6 +138,20 @@ export default {
               activeChannels: channelManager.getActiveChannels(),
               hasAI: !!env.AI,
               hasDB: !!env.DB,
+              requestId,
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Webhook status endpoint
+        if (pathname === '/webhook/status') {
+          logger.info('WEBHOOK', 'Webhook status requested', { requestId });
+          const webhookStatus = await getWebhookStatus(env as any);
+          return new Response(
+            JSON.stringify({
+              webhook: webhookStatus,
+              timestamp: new Date().toISOString(),
               requestId,
             }),
             { status: 200, headers: { 'Content-Type': 'application/json' } }
