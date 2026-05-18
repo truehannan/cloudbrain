@@ -28,7 +28,7 @@ export class WhatsAppChannel extends BaseChannel {
     try {
       // Verify credentials by making a test API call
       const response = await fetch(
-        `https://graph.instagram.com/v18.0/${this.phoneNumberId}`,
+        `https://graph.facebook.com/v18.0/${this.phoneNumberId}`,
         {
           headers: {
             Authorization: `Bearer ${this.accessToken}`,
@@ -100,7 +100,7 @@ export class WhatsAppChannel extends BaseChannel {
 
     try {
       const response = await fetch(
-        `https://graph.instagram.com/v18.0/${this.phoneNumberId}/messages`,
+        `https://graph.facebook.com/v18.0/${this.phoneNumberId}/messages`,
         {
           method: 'POST',
           headers: {
@@ -148,7 +148,7 @@ export class WhatsAppChannel extends BaseChannel {
       const fileType = this.getFileType(fileUrl);
 
       const response = await fetch(
-        `https://graph.instagram.com/v18.0/${this.phoneNumberId}/messages`,
+        `https://graph.facebook.com/v18.0/${this.phoneNumberId}/messages`,
         {
           method: 'POST',
           headers: {
