@@ -55,6 +55,67 @@ If a user asks you to perform any restricted actions, you MUST refuse and explai
 
 Always be helpful, honest, and respectful of these security boundaries.`;
 
+const textEncoder = new TextEncoder();
+const DISCORD_EPHEMERAL_FLAG = 64;
+
+interface WorkerExecutionContext {
+  waitUntil(promise: Promise<any>): void;
+}
+
+function hexToBytes(hex: string): Uint8Array | null {
+  if (!hex || hex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(hex)) {
+    return null;
+  }
+
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+  }
+  return bytes;
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
+async function verifyDiscordSignature(
+  request: Request,
+  rawBody: string,
+  publicKeyHex: string
+): Promise<boolean> {
+  const signature = request.headers.get('x-signature-ed25519');
+  const timestamp = request.headers.get('x-signature-timestamp');
+
+  if (!signature || !timestamp || !publicKeyHex) {
+    return false;
+  }
+
+  const publicKey = hexToBytes(publicKeyHex);
+  const signatureBytes = hexToBytes(signature);
+
+  if (!publicKey || !signatureBytes) {
+    return false;
+  }
+
+  try {
+    const publicKeyBuffer = toArrayBuffer(publicKey);
+    const signatureBuffer = toArrayBuffer(signatureBytes);
+    const messageBytes = textEncoder.encode(`${timestamp}${rawBody}`);
+    const messageBuffer = toArrayBuffer(messageBytes);
+
+    const key = await crypto.subtle.importKey(
+      'raw',
+      publicKeyBuffer,
+      { name: 'Ed25519' },
+      false,
+      ['verify']
+    );
+    return await crypto.subtle.verify('Ed25519', key, signatureBuffer, messageBuffer);
+  } catch {
+    return false;
+  }
+}
+
 async function getCredentialsFromKV(env: Env): Promise<Record<string, string>> {
   try {
     logger.info('KV', 'Fetching credentials from KV namespace');
@@ -63,6 +124,7 @@ async function getCredentialsFromKV(env: Env): Promise<Record<string, string>> {
       'TELEGRAM_OWNER_ID',
       'DISCORD_BOT_TOKEN',
       'DISCORD_CLIENT_ID',
+      'DISCORD_PUBLIC_KEY',
       'DISCORD_WEBHOOK_URL',
       'WHATSAPP_PHONE_NUMBER_ID',
       'WHATSAPP_BUSINESS_ACCOUNT_ID',
@@ -91,7 +153,7 @@ async function getCredentialsFromKV(env: Env): Promise<Record<string, string>> {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: WorkerExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const pathname = url.pathname;
     const requestId = Math.random().toString(36).substring(7);
@@ -180,6 +242,27 @@ export default {
           );
         }
 
+        // WhatsApp webhook verification challenge
+        if (pathname === '/whatsapp') {
+          const mode = url.searchParams.get('hub.mode');
+          const token = url.searchParams.get('hub.verify_token');
+          const challenge = url.searchParams.get('hub.challenge');
+
+          if (
+            mode === 'subscribe' &&
+            token &&
+            credentials.WHATSAPP_VERIFY_TOKEN &&
+            token === credentials.WHATSAPP_VERIFY_TOKEN &&
+            challenge
+          ) {
+            logger.info('WEBHOOK', 'WhatsApp webhook verified', { requestId });
+            return new Response(challenge, { status: 200 });
+          }
+
+          logger.warn('WEBHOOK', 'WhatsApp webhook verification failed', { requestId });
+          return new Response('Forbidden', { status: 403 });
+        }
+
         logger.info('REQUEST', 'GET request to root', { requestId });
         return new Response(
           JSON.stringify({
@@ -194,8 +277,18 @@ export default {
       // Handle webhook POST requests
       if (request.method === 'POST') {
         try {
+          const rawBody = await request.text();
           logger.debug('REQUEST', 'Parsing JSON payload', { requestId });
-          const payload = await request.json();
+          let payload: any;
+          try {
+            payload = JSON.parse(rawBody);
+          } catch (error) {
+            logger.error('WEBHOOK', 'Invalid JSON payload', { requestId, error });
+            return new Response(
+              JSON.stringify({ error: 'Invalid JSON payload' }),
+              { status: 400, headers: { 'Content-Type': 'application/json' } }
+            );
+          }
           logger.debug('REQUEST', 'Payload received', { requestId, payloadKeys: Object.keys(payload) });
 
           // Route to appropriate channel based on path
@@ -207,6 +300,25 @@ export default {
             channelType = 'telegram';
             message = await channelManager.routeWebhook('telegram', payload);
           } else if (pathname === '/discord') {
+            const discordPublicKey = credentials.DISCORD_PUBLIC_KEY;
+            if (!discordPublicKey) {
+              logger.error('WEBHOOK', 'Discord public key not configured', { requestId });
+              return new Response('Discord webhook is not configured', { status: 500 });
+            }
+
+            const verified = await verifyDiscordSignature(request, rawBody, discordPublicKey);
+            if (!verified) {
+              logger.warn('WEBHOOK', 'Discord signature verification failed', { requestId });
+              return new Response('Unauthorized', { status: 401 });
+            }
+
+            if (payload.type === 1) {
+              return new Response(JSON.stringify({ type: 1 }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              });
+            }
+
             logger.info('WEBHOOK', 'Routing to Discord', { requestId });
             channelType = 'discord';
             message = await channelManager.routeWebhook('discord', payload);
@@ -214,6 +326,41 @@ export default {
             logger.info('WEBHOOK', 'Routing to WhatsApp', { requestId });
             channelType = 'whatsapp';
             message = await channelManager.routeWebhook('whatsapp', payload);
+          }
+
+          if (channelType === 'discord') {
+            if (!message) {
+              return new Response(
+                JSON.stringify({
+                  type: 4,
+                  data: {
+                    content: 'Unable to process this Discord interaction.',
+                    flags: DISCORD_EPHEMERAL_FLAG,
+                  },
+                }),
+                { status: 200, headers: { 'Content-Type': 'application/json' } }
+              );
+            }
+
+            ctx.waitUntil(
+              executeTaskWithProgress(
+                env,
+                channelManager,
+                memoryDb,
+                skillsManager,
+                agentCoordinator,
+                message,
+                requestId
+              )
+            );
+
+            return new Response(
+              JSON.stringify({
+                type: 4,
+                data: { content: '🔄 Processing your request...' },
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } }
+            );
           }
 
           if (!message) {
