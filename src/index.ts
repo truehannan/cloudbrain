@@ -56,6 +56,11 @@ If a user asks you to perform any restricted actions, you MUST refuse and explai
 Always be helpful, honest, and respectful of these security boundaries.`;
 
 const textEncoder = new TextEncoder();
+const DISCORD_EPHEMERAL_FLAG = 64;
+
+interface WorkerExecutionContext {
+  waitUntil(promise: Promise<any>): void;
+}
 
 function hexToBytes(hex: string): Uint8Array | null {
   if (!hex || hex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(hex)) {
@@ -67,6 +72,10 @@ function hexToBytes(hex: string): Uint8Array | null {
     bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
   }
   return bytes;
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 async function verifyDiscordSignature(
@@ -89,9 +98,19 @@ async function verifyDiscordSignature(
   }
 
   try {
-    const key = await crypto.subtle.importKey('raw', publicKey, { name: 'Ed25519' }, false, ['verify']);
-    const message = textEncoder.encode(`${timestamp}${rawBody}`);
-    return await crypto.subtle.verify('Ed25519', key, signatureBytes, message);
+    const publicKeyBuffer = toArrayBuffer(publicKey);
+    const signatureBuffer = toArrayBuffer(signatureBytes);
+    const messageBytes = textEncoder.encode(`${timestamp}${rawBody}`);
+    const messageBuffer = toArrayBuffer(messageBytes);
+
+    const key = await crypto.subtle.importKey(
+      'raw',
+      publicKeyBuffer,
+      { name: 'Ed25519' },
+      false,
+      ['verify']
+    );
+    return await crypto.subtle.verify('Ed25519', key, signatureBuffer, messageBuffer);
   } catch {
     return false;
   }
@@ -134,7 +153,7 @@ async function getCredentialsFromKV(env: Env): Promise<Record<string, string>> {
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: WorkerExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const pathname = url.pathname;
     const requestId = Math.random().toString(36).substring(7);
@@ -260,7 +279,16 @@ export default {
         try {
           const rawBody = await request.text();
           logger.debug('REQUEST', 'Parsing JSON payload', { requestId });
-          const payload = JSON.parse(rawBody);
+          let payload: any;
+          try {
+            payload = JSON.parse(rawBody);
+          } catch (error) {
+            logger.error('WEBHOOK', 'Invalid JSON payload', { requestId, error });
+            return new Response(
+              JSON.stringify({ error: 'Invalid JSON payload' }),
+              { status: 400, headers: { 'Content-Type': 'application/json' } }
+            );
+          }
           logger.debug('REQUEST', 'Payload received', { requestId, payloadKeys: Object.keys(payload) });
 
           // Route to appropriate channel based on path
@@ -272,7 +300,13 @@ export default {
             channelType = 'telegram';
             message = await channelManager.routeWebhook('telegram', payload);
           } else if (pathname === '/discord') {
-            const verified = await verifyDiscordSignature(request, rawBody, credentials.DISCORD_PUBLIC_KEY || '');
+            const discordPublicKey = credentials.DISCORD_PUBLIC_KEY;
+            if (!discordPublicKey) {
+              logger.error('WEBHOOK', 'Discord public key not configured', { requestId });
+              return new Response('Discord webhook is not configured', { status: 500 });
+            }
+
+            const verified = await verifyDiscordSignature(request, rawBody, discordPublicKey);
             if (!verified) {
               logger.warn('WEBHOOK', 'Discord signature verification failed', { requestId });
               return new Response('Unauthorized', { status: 401 });
@@ -299,7 +333,10 @@ export default {
               return new Response(
                 JSON.stringify({
                   type: 4,
-                  data: { content: 'Unable to process this Discord interaction.', flags: 64 },
+                  data: {
+                    content: 'Unable to process this Discord interaction.',
+                    flags: DISCORD_EPHEMERAL_FLAG,
+                  },
                 }),
                 { status: 200, headers: { 'Content-Type': 'application/json' } }
               );
